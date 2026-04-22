@@ -1,249 +1,251 @@
 'use client';
-// components/GlobalNav.tsx — Unified navigation bar
+// components/GlobalNav.tsx — Parallel Portal Navigation v5.0 (JobStreet Inspired)
+// Shared top-bar structure for both Candidate and Employer portals.
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-const EMPLOYER_LINKS = [
-  {
-    href: '/hr',
-    label: 'HR Dashboard',
-    icon: (
-      <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.8"/>
-        <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.8"/>
-        <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.8"/>
-        <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.8"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/verdicts',
-    label: 'Verdict Cards',
-    icon: (
-      <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-        <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M21 12c0-4.97-4.03-9-9-9S3 7.03 3 12s4.03 9 9 9 9-4.03 9-9z" stroke="currentColor" strokeWidth="1.8"/>
-      </svg>
-    ),
-  },
-];
-
-const CANDIDATE_LINKS = [
-  {
-    href: '/jobs',
-    label: 'Find Jobs',
-    icon: (
-      <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    href: '#',
-    label: 'My Applications',
-    icon: (
-      <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-        <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/>
-      </svg>
-    ),
-  },
-];
+import { useState, useEffect } from 'react';
 
 export default function GlobalNav() {
   const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isFullscreenPage =
-    pathname?.startsWith('/interview/') || pathname?.startsWith('/result/') || pathname?.includes('/apply');
-  if (isFullscreenPage) return null;
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 12);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
 
-  const isCandidateMode = pathname?.startsWith('/jobs');
+  // Fullscreen pages hide the nav
+  const isHidden =
+    pathname?.startsWith('/interview/') ||
+    pathname?.startsWith('/result/') ||
+    pathname?.includes('/apply');
 
-  const activeLinks = isCandidateMode ? CANDIDATE_LINKS : EMPLOYER_LINKS;
+  if (isHidden) return null;
 
-  const isActive = (href: string) => {
-    if (href === '/hr') return pathname === '/hr';
-    if (href === '/jobs') return pathname === '/jobs';
-    return href !== '#' && pathname?.startsWith(href);
+  // Mode Detection
+  const isEmployerMode = pathname?.startsWith('/hr') || pathname?.startsWith('/verdicts');
+
+  // Helper for active link styling
+  const isActive = (path: string) => {
+    if (path === '/hr') return pathname === '/hr'; 
+    return pathname?.startsWith(path);
   };
 
   return (
-    <nav style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-      background: 'rgba(255,255,255,0.94)',
-      backdropFilter: 'blur(16px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-      borderBottom: '1px solid #e5edf5',
-      boxShadow: 'rgba(50,50,93,0.06) 0px 1px 0px',
-    }}>
-      <div style={{
-        maxWidth: 1280,
-        margin: '0 auto',
-        padding: '0 24px',
-        height: 60,
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 0,
-      }}>
-        {/* Logo */}
-        <Link href="/" style={{
+    <nav
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 200,
+        background: isEmployerMode 
+          ? (scrolled ? '#0A0E14' : '#080A0F') // Dark for HR
+          : (scrolled ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.82)'), // Light for Candidate
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderBottom: isEmployerMode
+          ? '1px solid #1E2433'
+          : (scrolled ? '1px solid rgba(0,0,0,0.07)' : '1px solid rgba(0,0,0,0.03)'),
+        transition: 'all 0.3s ease',
+        boxShadow: scrolled ? '0 1px 24px rgba(0,0,0,0.05)' : 'none',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1280,
+          margin: '0 auto',
+          padding: '0 32px',
+          height: 68, // slightly taller for professional feel
           display: 'flex',
-          flexDirection: 'row',
           alignItems: 'center',
-          gap: 8,
-          textDecoration: 'none',
-          marginRight: 24,
-          flexShrink: 0,
-        }}>
-          <div style={{
-            width: 28, height: 28,
-            background: '#533afd',
-            borderRadius: 6,
+          gap: 0,
+        }}
+      >
+        {/* ── Logo ───────────────────────────────────────────────────── */}
+        <Link
+          href={isEmployerMode ? "/hr" : "/"}
+          style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
+            gap: 10,
+            textDecoration: 'none',
+            flexShrink: 0,
+            marginRight: 40,
+          }}
+        >
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              background: 'linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)',
+              borderRadius: 9,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: isEmployerMode ? '0 0 16px rgba(37,99,235,0.25)' : '0 2px 8px rgba(37,99,235,0.15)',
+            }}
+          >
+            <svg width="17" height="17" fill="none" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white" />
             </svg>
           </div>
-          <span style={{
-            fontSize: 16,
-            fontWeight: 600,
-            color: '#061b31',
-            letterSpacing: '-0.3px',
-          }}>
-            Talent<span style={{ color: '#533afd' }}>Bridge</span>{' '}
-            <span style={{ color: '#64748d', fontWeight: 300, fontSize: 12 }}>AI</span>
+          <span
+            style={{
+              fontSize: 17,
+              fontWeight: 800,
+              color: isEmployerMode ? '#F9FAFB' : '#0A0C12',
+              letterSpacing: '-0.5px',
+              fontFamily: 'var(--font-display)',
+            }}
+          >
+            Talent
+            <span
+              style={{
+                background: 'linear-gradient(135deg, #2563EB, #06B6D4)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              Bridge
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#9CA3AF',
+                marginLeft: 5,
+                WebkitTextFillColor: '#9CA3AF',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              {isEmployerMode ? 'HR' : 'AI'}
+            </span>
           </span>
         </Link>
 
-        {/* Mode Switcher */}
-        <div style={{
-          display: 'flex',
-          background: '#f1f5f9',
-          padding: 4,
-          borderRadius: 8,
-          marginRight: 32,
-        }}>
-          <Link href="/jobs" style={{
-            padding: '4px 12px',
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 500,
-            color: isCandidateMode ? '#061b31' : '#64748d',
-            background: isCandidateMode ? '#fff' : 'transparent',
-            boxShadow: isCandidateMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            textDecoration: 'none',
-            transition: 'all 0.2s',
-          }}>
-            Job Seeker
-          </Link>
-          <Link href="/hr" style={{
-            padding: '4px 12px',
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 500,
-            color: !isCandidateMode ? '#061b31' : '#64748d',
-            background: !isCandidateMode ? '#fff' : 'transparent',
-            boxShadow: !isCandidateMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            textDecoration: 'none',
-            transition: 'all 0.2s',
-          }}>
-            Employer
-          </Link>
+        {/* ── Contextual Navigation Links ────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {isEmployerMode ? (
+            <>
+              <NavItem href="/hr" label="Dashboard" active={isActive('/hr')} isDark />
+              <NavItem href="/hr/upload" label="Post a Role" active={isActive('/hr/upload')} isDark />
+              <NavItem href="/verdicts" label="Verdicts" active={isActive('/verdicts')} isDark />
+            </>
+          ) : (
+            <>
+              <NavItem href="/jobs" label="Job search" active={isActive('/jobs')} />
+              <NavItem href="/how-it-works" label="How it works" active={isActive('/how-it-works')} />
+            </>
+          )}
         </div>
 
-        {/* Nav links row */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 4,
-          flex: 1,
-        }}>
-          {activeLinks.map(link => {
-            const active = isActive(link.href);
-            return (
-              <Link
-                key={link.label}
-                href={link.href}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 12px',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontWeight: active ? 500 : 400,
-                  color: active ? '#533afd' : '#273951',
-                  textDecoration: 'none',
-                  background: active ? 'rgba(83,58,253,0.06)' : 'transparent',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span style={{ opacity: active ? 1 : 0.6, display: 'flex', alignItems: 'center' }}>
-                  {link.icon}
-                </span>
-                {link.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Actions */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          marginLeft: 'auto',
-        }}>
+        {/* ── Right side Actions ──────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          
+          {/* Portrait Switcher — JobStreet Style */}
           <Link
-            href="/how-it-works"
+            href={isEmployerMode ? "/" : "/hr"}
             style={{
-              fontSize: 13,
-              color: '#64748d',
-              textDecoration: 'none',
-              marginRight: 16,
+              color: isEmployerMode ? '#64748B' : '#4B5568',
+              fontSize: 14,
               fontWeight: 500,
+              textDecoration: 'none',
+              padding: '8px 16px',
+              borderRadius: 8,
+              transition: 'all 0.2s ease',
+              fontFamily: 'var(--font-body)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = isEmployerMode ? '#FFFFFF' : '#0A0C12';
+              e.currentTarget.style.background = isEmployerMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = isEmployerMode ? '#64748B' : '#4B5568';
+              e.currentTarget.style.background = 'transparent';
             }}
           >
-            How It Works
+            {isEmployerMode ? "Jobseeker site" : "Employer site"}
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" style={{ opacity: 0.6 }}>
+              <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z" fill="currentColor" />
+            </svg>
           </Link>
-          {!isCandidateMode && (
+
+          {!isEmployerMode && (
             <Link
-              href="/hr/upload"
+              href="/jobs"
+              className="btn-accent"
               style={{
+                padding: '0 20px',
+                height: 40,
+                fontSize: 14,
+                fontWeight: 700,
+                borderRadius: 10,
                 display: 'inline-flex',
-                flexDirection: 'row',
                 alignItems: 'center',
                 gap: 6,
-                padding: '6px 14px',
-                background: '#533afd',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 4,
-                fontSize: 13,
-                fontWeight: 500,
+                letterSpacing: '-0.1px',
                 textDecoration: 'none',
-                whiteSpace: 'nowrap',
               }}
             >
-              <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
-                <path d="M12 5v14M5 12l7-7 7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Post Job
+              Sign up
             </Link>
           )}
         </div>
       </div>
     </nav>
+  );
+}
+
+function NavItem({ href, label, active, isDark }: { href: string; label: string; active: boolean; isDark?: boolean }) {
+  return (
+    <Link
+      href={href}
+      style={{
+        padding: '8px 18px',
+        borderRadius: 10,
+        fontSize: 14,
+        fontWeight: active ? 700 : 500,
+        color: active 
+          ? (isDark ? '#FFFFFF' : '#2563EB') 
+          : (isDark ? '#64748B' : '#4B5568'),
+        textDecoration: 'none',
+        background: active 
+          ? (isDark ? 'rgba(37,99,235,0.2)' : 'rgba(37,99,235,0.07)') 
+          : 'transparent',
+        transition: 'all 0.15s ease',
+        fontFamily: 'var(--font-body)',
+        letterSpacing: '-0.1px',
+        position: 'relative',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.color = isDark ? '#FFFFFF' : '#0A0C12';
+          e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.color = isDark ? '#64748B' : '#4B5568';
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}
+    >
+      {label}
+      {active && (
+        <span style={{ 
+          position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', 
+          width: 4, height: 4, borderRadius: '50%', 
+          background: isDark ? '#2563EB' : 'currentColor' 
+        }} />
+      )}
+    </Link>
   );
 }

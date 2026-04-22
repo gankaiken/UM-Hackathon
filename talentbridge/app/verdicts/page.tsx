@@ -1,6 +1,4 @@
-// app/verdicts/page.tsx — Premium Verdict Cards Grid
-// Shows all completed AI-generated candidate assessments in a premium card layout
-
+// app/verdicts/page.tsx — Premium Verdict Cards Grid v3.0
 import { db } from '@/lib/db';
 import { sessions, jdCache } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -8,16 +6,6 @@ import Link from 'next/link';
 import type { VerdictResult } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
-
-function DotIndicator({ active }: { active: boolean }) {
-  return (
-    <span style={{
-      width: 7, height: 7, borderRadius: '50%',
-      background: active ? 'var(--green)' : '#d1d9e8',
-      display: 'inline-block', flexShrink: 0,
-    }} />
-  );
-}
 
 export default async function VerdictsPage() {
   const allSessions = await db
@@ -29,226 +17,323 @@ export default async function VerdictsPage() {
 
   const completed = allSessions.filter(s => s.session.verdict);
 
+  const triageConfig = {
+    GREEN: {
+      color: '#059669', bg: 'rgba(16,185,129,0.08)', border: '#BBF7D0',
+      headerBg: 'linear-gradient(135deg, rgba(16,185,129,0.05), transparent 60%)',
+      label: 'Fast Track',
+    },
+    AMBER: {
+      color: '#D97706', bg: 'rgba(245,158,11,0.08)', border: '#FDE68A',
+      headerBg: 'linear-gradient(135deg, rgba(245,158,11,0.06), transparent 60%)',
+      label: 'Conditional',
+    },
+    RED: {
+      color: '#DC2626', bg: 'rgba(239,68,68,0.08)', border: '#FECACA',
+      headerBg: 'linear-gradient(135deg, rgba(239,68,68,0.06), transparent 60%)',
+      label: 'Review',
+    },
+  };
+
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 24px' }}>
+    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36 }}>
-        <div>
-          <p className="label-mono" style={{ marginBottom: 8 }}>AI Assessment Output</p>
-          <h1 className="display-lg">Generated Verdict Cards</h1>
-          <p style={{ color: 'var(--slate)', fontSize: 15, marginTop: 6 }}>
-            {completed.length} cards · filtered: all
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {['All', 'GREEN', 'AMBER', 'RED'].map(f => (
-            <span key={f} style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-xs)',
-              fontSize: 13,
-              fontWeight: f === 'All' ? 500 : 400,
-              background: f === 'All' ? 'var(--purple)' : '#fff',
-              color: f === 'All' ? '#fff' : 'var(--slate-dark)',
-              cursor: 'pointer',
-              border: `1px solid ${f === 'All' ? 'var(--purple)' : 'var(--border)'}`,
-              boxShadow: 'var(--shadow-sm)',
-            }}>
-              {f}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Cards Grid ─────────────────────────────────────────────────── */}
-      {completed.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '80px 0' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-          <h2 style={{ color: 'var(--navy)', fontSize: 20, fontWeight: 400, marginBottom: 8 }}>No verdicts yet</h2>
-          <p style={{ color: 'var(--slate)', fontSize: 14 }}>
-            Post a job and complete interviews to see AI-generated verdict cards.
-          </p>
-          <Link href="/hr/upload" className="btn-primary" style={{ display: 'inline-flex', marginTop: 20 }}>
-            Post a Role
-          </Link>
-        </div>
-      ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))',
-          gap: 20,
-        }}>
-          {completed.map(({ session, roleTitle }) => {
-            let verdict: VerdictResult | null = null;
-            try { verdict = JSON.parse(session.verdict!); } catch { return null; }
-            if (!verdict) return null;
-
-            const sentinel = JSON.parse(session.sentinelData);
-            const isFlagged = sentinel.focus_loss_events > 3 && sentinel.paste_events > 1;
-            const avgScore = verdict.overall_score ?? Math.round(
-              Object.values(verdict.dimension_scores).reduce((s, d) => s + d.score, 0) /
-              Math.max(1, Object.keys(verdict.dimension_scores).length)
-            );
-            const triage = verdict.triage_result;
-            const initials = session.candidateName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-
-            return (
-              <div
-                key={session.id}
-                className="card"
-                style={{
-                  padding: 0,
-                  overflow: 'hidden',
-                  transition: 'box-shadow 0.2s, transform 0.2s',
-                  cursor: 'pointer',
-                }}
-              >
-                {/* Card header */}
-                <div style={{
-                  padding: '20px 20px 16px',
-                  borderBottom: '1px solid var(--border)',
-                  background: triage === 'GREEN' ? 'linear-gradient(135deg, rgba(21,190,83,0.04) 0%, rgba(255,255,255,0) 60%)' :
-                             triage === 'AMBER' ? 'linear-gradient(135deg, rgba(245,158,11,0.05) 0%, rgba(255,255,255,0) 60%)' :
-                             'linear-gradient(135deg, rgba(239,68,68,0.05) 0%, rgba(255,255,255,0) 60%)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{
-                        width: 44, height: 44, borderRadius: '50%',
-                        background: triage === 'GREEN' ? 'rgba(21,190,83,0.12)' : triage === 'AMBER' ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)',
-                        border: `1.5px solid ${triage === 'GREEN' ? 'rgba(21,190,83,0.3)' : triage === 'AMBER' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14, fontWeight: 600,
-                        color: triage === 'GREEN' ? 'var(--green-text)' : triage === 'AMBER' ? '#92650a' : 'var(--triage-red-text)',
-                        flexShrink: 0,
-                      }}>
-                        {initials}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--navy)', letterSpacing: -0.2, lineHeight: 1.2 }}>
-                          {session.candidateName}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--slate)', marginTop: 2 }}>
-                          {roleTitle ?? 'Unknown Role'}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                      <span className={`triage-badge triage-${triage}`}>{triage}</span>
-                      <span style={{
-                        fontSize: 22, fontWeight: 300, letterSpacing: -0.8,
-                        color: triage === 'GREEN' ? 'var(--green-text)' : triage === 'AMBER' ? '#92650a' : 'var(--triage-red-text)',
-                      }}>
-                        {avgScore}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Authenticity badge */}
-                  <div className={isFlagged ? 'auth-flagged' : 'auth-clean'} style={{ display: 'inline-flex' }}>
-                    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                      {isFlagged
-                        ? <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        : <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      }
-                    </svg>
-                    {isFlagged ? 'Anomaly flags detected — review required' : 'Authenticity: Clean — no anomaly flags'}
-                  </div>
-                </div>
-
-                {/* Card body */}
-                <div style={{ padding: '16px 20px' }}>
-                  {/* Verified Strengths */}
-                  {verdict.strengths && verdict.strengths.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div className="section-label" style={{ marginBottom: 8 }}>Verified Strengths</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {verdict.strengths.map((s: string) => (
-                          <span key={s} className="skill-tag">{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Identified Gaps */}
-                  {verdict.gaps && verdict.gaps.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div className="section-label" style={{ marginBottom: 8 }}>Identified Gap</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {verdict.gaps.map((g: string) => (
-                          <span key={g} className="skill-tag skill-tag-gap">{g}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AI Summary */}
-                  {verdict.summary && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div className="section-label" style={{ marginBottom: 8 }}>AI Summary</div>
-                      <p style={{ fontSize: 13, color: 'var(--slate-dark)', lineHeight: 1.6 }}>
-                        {verdict.summary}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Competency Signals */}
-                  <div>
-                    <div className="section-label" style={{ marginBottom: 10 }}>Competency Signals</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {Object.entries(verdict.dimension_scores).map(([key, dim]) => {
-                        const score = dim.score;
-                        const barColor = score >= 75 ? 'score-bar-green' : score >= 50 ? 'score-bar-amber' : 'score-bar-red';
-                        return (
-                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span style={{ fontSize: 12, color: 'var(--slate)', width: 160, flexShrink: 0 }}>
-                              {dim.label ?? key}
-                            </span>
-                            <div className="score-bar-track">
-                              <div className={`score-bar-fill ${barColor}`} style={{ width: `${score}%` }} />
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--navy)', minWidth: 28, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              {score}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card footer — action buttons */}
-                <div style={{
-                  padding: '12px 20px',
-                  borderTop: '1px solid var(--border)',
-                  background: 'var(--bg-subtle)',
-                  display: 'flex',
-                  gap: 8,
-                }}>
-                  {triage === 'GREEN' && (
-                    <Link href={`/hr/verdict/${session.id}`} className="btn-primary" style={{ flex: 1, justifyContent: 'center', fontSize: 13, padding: '8px' }}>
-                      Fast-Track to Interview
-                    </Link>
-                  )}
-                  {triage === 'AMBER' && (
-                    <Link href={`/hr/verdict/${session.id}`} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', fontSize: 13, padding: '8px' }}>
-                      Schedule + Upskill Path
-                    </Link>
-                  )}
-                  {triage === 'RED' && (
-                    <Link href={`/hr/verdict/${session.id}`} className="btn-neutral" style={{ flex: 1, justifyContent: 'center', fontSize: 13, padding: '8px' }}>
-                      Review Details
-                    </Link>
-                  )}
-                  <Link href={`/hr/verdict/${session.id}`} className="btn-neutral" style={{ fontSize: 13, padding: '8px 14px' }}>
-                    View Transcript
-                  </Link>
-                </div>
+      {/* ── Hero header ───────────────────────────────────────────── */}
+      <section style={{
+        background: 'linear-gradient(180deg, #F6F9FF 0%, #FFFFFF 100%)',
+        padding: '64px 40px 48px',
+        borderBottom: '1px solid #E5E7EB',
+      }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#2563EB', letterSpacing: '0.8px', textTransform: 'uppercase', fontFamily: 'var(--font-body)', marginBottom: 12 }}>
+                AI Assessment Output
               </div>
-            );
-          })}
+              <h1 style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(30px, 4vw, 48px)',
+                fontWeight: 800, lineHeight: 1.1, letterSpacing: '-1.5px',
+                color: '#0A0C12', marginBottom: 8,
+              }}>
+                Verdict Cards
+              </h1>
+              <p style={{ fontSize: 15, color: '#6B7280', fontFamily: 'var(--font-body)' }}>
+                {completed.length} AI-generated assessments · Bias-stripped · Schema-validated
+              </p>
+            </div>
+
+            {/* Filter pills */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {['All', 'GREEN', 'AMBER', 'RED'].map((f, i) => (
+                <span key={f} style={{
+                  padding: '7px 16px',
+                  borderRadius: 20,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: i === 0 ? '#2563EB' : f === 'GREEN' ? 'rgba(16,185,129,0.1)' : f === 'AMBER' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                  color: i === 0 ? '#fff' : f === 'GREEN' ? '#059669' : f === 'AMBER' ? '#D97706' : '#DC2626',
+                  cursor: 'pointer',
+                  border: i === 0 ? 'none' : `1px solid ${f === 'GREEN' ? '#BBF7D0' : f === 'AMBER' ? '#FDE68A' : '#FECACA'}`,
+                  fontFamily: 'var(--font-body)',
+                }}>
+                  {f}
+                </span>
+              ))}
+              <Link href="/hr/upload" className="btn-primary" style={{ padding: '0 20px', height: 40, fontSize: 14 }}>
+                + Post Role
+              </Link>
+            </div>
+          </div>
         </div>
-      )}
+      </section>
+
+      {/* ── Cards ────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 40px 100px' }}>
+        {completed.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '100px 0' }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: 24,
+              background: 'rgba(37,99,235,0.08)', border: '1.5px solid rgba(37,99,235,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 24px', fontSize: 32,
+            }}>
+              🎯
+            </div>
+            <h2 style={{
+              fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
+              color: '#0A0C12', marginBottom: 10,
+            }}>
+              No verdicts generated yet
+            </h2>
+            <p style={{ fontSize: 15, color: '#6B7280', fontFamily: 'var(--font-body)', marginBottom: 28 }}>
+              Post a job and complete interviews to see AI-generated verdict cards.
+            </p>
+            <Link href="/hr/upload" className="btn-accent" style={{ padding: '0 32px' }}>
+              Post a Role →
+            </Link>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))',
+            gap: 24,
+          }}>
+            {completed.map(({ session, roleTitle }) => {
+              let verdict: VerdictResult | null = null;
+              try { verdict = JSON.parse(session.verdict!); } catch { return null; }
+              if (!verdict) return null;
+
+              let isFlagged = false;
+              try {
+                const sentinel = JSON.parse(session.sentinelData);
+                isFlagged = sentinel.focus_loss_events > 3 && sentinel.paste_events > 1;
+              } catch { /* ignore */ }
+
+              const avgScore = verdict.overall_score ?? Math.round(
+                Object.values(verdict.dimension_scores).reduce((s, d) => s + (typeof d === 'number' ? d : d.score), 0) /
+                Math.max(1, Object.keys(verdict.dimension_scores).length)
+              );
+              const triage = verdict.triage_result as 'GREEN' | 'AMBER' | 'RED';
+              const config = triageConfig[triage] ?? triageConfig.GREEN;
+              const initials = session.candidateName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+
+              return (
+                <div
+                  key={session.id}
+                  style={{
+                    background: '#FFFFFF',
+                    border: `1.5px solid ${config.border}`,
+                    borderRadius: 20,
+                    overflow: 'hidden',
+                    transition: 'all 0.25s ease',
+                  }}
+                >
+                  {/* Card header */}
+                  <div style={{
+                    padding: '24px 24px 20px',
+                    borderBottom: '1px solid #F3F4F6',
+                    background: config.headerBg,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {/* Avatar */}
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 12,
+                          background: config.bg,
+                          border: `1.5px solid ${config.border}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14, fontWeight: 700, color: config.color, flexShrink: 0,
+                          fontFamily: 'var(--font-display)',
+                        }}>
+                          {initials}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#0A0C12', letterSpacing: '-0.3px', lineHeight: 1.2, fontFamily: 'var(--font-display)' }}>
+                            {session.candidateName}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2, fontFamily: 'var(--font-body)' }}>
+                            {roleTitle ?? 'Unknown Role'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Triage badge + score */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          background: config.bg, color: config.color,
+                          border: `1px solid ${config.border}`,
+                          fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-body)',
+                          padding: '4px 10px', borderRadius: 6,
+                          letterSpacing: '0.5px', textTransform: 'uppercase',
+                        }}>
+                          {triage}
+                        </span>
+                        <span style={{
+                          fontSize: 28, fontWeight: 800, letterSpacing: '-1px',
+                          color: config.color, lineHeight: 1,
+                          fontFamily: 'var(--font-display)',
+                        }}>
+                          {avgScore}
+                          <span style={{ fontSize: 13, fontWeight: 500, color: '#9CA3AF', marginLeft: 2 }}>/100</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Authenticity badge */}
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      fontSize: 12, fontWeight: 600,
+                      color: isFlagged ? '#D97706' : '#059669',
+                      background: isFlagged ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)',
+                      border: `1px solid ${isFlagged ? '#FDE68A' : '#BBF7D0'}`,
+                      padding: '4px 10px', borderRadius: 6,
+                      fontFamily: 'var(--font-body)',
+                    }}>
+                      {isFlagged ? '⚠' : '✓'}
+                      {isFlagged ? ' Anomaly flags — review required' : ' Authenticity: Clean'}
+                    </div>
+                  </div>
+
+                  {/* Card body */}
+                  <div style={{ padding: '20px 24px' }}>
+
+                    {/* Verified Strengths */}
+                    {verdict.strengths && verdict.strengths.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.6px', textTransform: 'uppercase', fontFamily: 'var(--font-body)', marginBottom: 8 }}>
+                          Verified Strengths
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {verdict.strengths.map((s: string) => (
+                            <span key={s} style={{
+                              background: 'rgba(37,99,235,0.08)', color: '#2563EB',
+                              fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                              fontFamily: 'var(--font-body)',
+                            }}>
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Gaps */}
+                    {verdict.gaps && verdict.gaps.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.6px', textTransform: 'uppercase', fontFamily: 'var(--font-body)', marginBottom: 8 }}>
+                          Identified Gap
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {verdict.gaps.map((g: string) => (
+                            <span key={g} style={{
+                              background: 'rgba(245,158,11,0.08)', color: '#D97706',
+                              fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6,
+                              fontFamily: 'var(--font-body)',
+                            }}>
+                              {g}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Summary */}
+                    {verdict.summary && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.6px', textTransform: 'uppercase', fontFamily: 'var(--font-body)', marginBottom: 8 }}>
+                          AI Summary
+                        </div>
+                        <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.65, fontFamily: 'var(--font-body)' }}>
+                          {verdict.summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Competency Score Bars */}
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.6px', textTransform: 'uppercase', fontFamily: 'var(--font-body)', marginBottom: 10 }}>
+                        Competency Signals
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {Object.entries(verdict.dimension_scores).map(([key, dim]) => {
+                          const score = typeof dim === 'number' ? dim : dim.score;
+                          const barColor = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+                          return (
+                            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ fontSize: 12, color: '#6B7280', width: 140, flexShrink: 0, fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>
+                                {(typeof dim === 'object' && dim.label) ? dim.label : key}
+                              </span>
+                              <div style={{ flex: 1, background: '#F3F4F6', borderRadius: 4, height: 5, overflow: 'hidden' }}>
+                                <div style={{ width: `${score}%`, height: '100%', background: barColor, borderRadius: 4 }} />
+                              </div>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#0A0C12', minWidth: 28, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                                {score}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card footer */}
+                  <div style={{
+                    padding: '14px 24px',
+                    borderTop: '1px solid #F3F4F6',
+                    background: '#FAFAFA',
+                    display: 'flex',
+                    gap: 8,
+                    alignItems: 'center',
+                  }}>
+                    <Link
+                      href={`/hr/verdict/${session.id}`}
+                      className="btn-primary"
+                      style={{ flex: 1, justifyContent: 'center', fontSize: 13, height: 38 }}
+                    >
+                      {triage === 'GREEN' ? 'Fast-Track →' : triage === 'AMBER' ? 'View Upskill Path' : 'Review Details'}
+                    </Link>
+                    <Link
+                      href={`/hr/verdict/${session.id}`}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        fontSize: 13, height: 38, padding: '0 14px',
+                        background: '#F3F4F6', color: '#6B7280',
+                        borderRadius: 8, textDecoration: 'none',
+                        fontFamily: 'var(--font-body)', fontWeight: 500,
+                        border: '1px solid #E5E7EB', transition: 'all 0.15s',
+                      }}
+                    >
+                      Transcript
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

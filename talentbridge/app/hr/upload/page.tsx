@@ -98,15 +98,29 @@ export default function PostJobPage() {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 36 }}>
-        <p className="label-mono" style={{ marginBottom: 8 }}>Employer Tools</p>
-        <h1 className="display-lg" style={{ marginBottom: 8 }}>Post a Role</h1>
-        <p style={{ color: 'var(--slate)', fontSize: 15 }}>
-          Paste your job description. The AI Mapper extracts competency dimensions and activates a bespoke interview in seconds.
-        </p>
-      </div>
+    <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
+      {/* Hero header */}
+      <section style={{
+        background: 'linear-gradient(180deg, #F6F9FF 0%, #FFFFFF 100%)',
+        padding: '56px 40px 40px',
+        borderBottom: '1px solid #E5E7EB',
+        marginBottom: 0,
+      }}>
+        <div style={{ maxWidth: 760, margin: '0 auto' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#2563EB', letterSpacing: '0.8px', textTransform: 'uppercase', fontFamily: 'var(--font-body)', marginBottom: 12 }}>Employer Tools</div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(30px, 4vw, 44px)',
+            fontWeight: 800, lineHeight: 1.1, letterSpacing: '-1.5px',
+            color: '#0A0C12', marginBottom: 10,
+          }}>Post a Role</h1>
+          <p style={{ fontSize: 16, color: '#6B7280', lineHeight: 1.65, fontFamily: 'var(--font-body)', maxWidth: 520 }}>
+            Paste your job description. The AI Mapper extracts competency dimensions and activates a bespoke interview in seconds.
+          </p>
+        </div>
+      </section>
+
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 40px 100px' }}>
 
       {/* JD Textarea */}
       <div className="card" style={{ padding: 28, marginBottom: 20 }}>
@@ -124,24 +138,24 @@ export default function PostJobPage() {
           rows={12}
           style={{
             width: '100%',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
+            border: '1.5px solid #D1D5DB',
+            borderRadius: 10,
             padding: '14px 16px',
-            color: 'var(--navy)',
+            color: '#0A0C12',
             fontSize: 14,
             lineHeight: 1.65,
             resize: 'vertical',
             outline: 'none',
             fontFamily: 'inherit',
-            background: '#fff',
+            background: '#FFFFFF',
             transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
           onFocus={e => {
-            e.target.style.borderColor = 'var(--purple)';
-            e.target.style.boxShadow = '0 0 0 3px rgba(83,58,253,0.08)';
+            e.target.style.borderColor = '#2563EB';
+            e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
           }}
           onBlur={e => {
-            e.target.style.borderColor = 'var(--border)';
+            e.target.style.borderColor = '#D1D5DB';
             e.target.style.boxShadow = 'none';
           }}
         />
@@ -342,6 +356,7 @@ export default function PostJobPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
