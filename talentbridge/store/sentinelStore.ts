@@ -9,6 +9,8 @@ interface SentinelStore {
   recordFocusLoss: (durationSeconds: number) => void;
   recordPaste: () => void;
   recordTabSwitch: () => void;
+  // Hard-coded rule: large paste auto-flagged as AI-generated
+  recordAiPaste: (charCount: number) => void;
   reset: () => void;
 }
 
@@ -17,6 +19,8 @@ const DEFAULT_DATA: SentinelData = {
   total_away_duration_seconds: 0,
   paste_events: 0,
   tab_switches: 0,
+  ai_paste_detected: false,
+  ai_paste_char_count: 0,
 };
 
 export const useSentinelStore = create<SentinelStore>((set) => ({
@@ -44,6 +48,16 @@ export const useSentinelStore = create<SentinelStore>((set) => ({
       data: {
         ...state.data,
         tab_switches: state.data.tab_switches + 1,
+      },
+    })),
+
+  recordAiPaste: (charCount: number) =>
+    set(state => ({
+      data: {
+        ...state.data,
+        paste_events: state.data.paste_events, // already recorded by recordPaste
+        ai_paste_detected: true,
+        ai_paste_char_count: Math.max(state.data.ai_paste_char_count ?? 0, charCount),
       },
     })),
 

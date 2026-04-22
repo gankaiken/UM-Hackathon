@@ -4,6 +4,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
+import ParticleBackground from '@/components/ParticleBackground';
 
 const STATS = [
   { value: '200K+', label: 'Malaysian grads ghosted yearly' },
@@ -127,6 +128,9 @@ export default function LandingPage() {
           background: 'linear-gradient(180deg, #F6F9FF 0%, #FFFFFF 60%)',
         }}
       >
+        {/* Antigravity particle background */}
+        <ParticleBackground />
+
         {/* Background grid dots */}
         <div
           style={{
@@ -191,7 +195,7 @@ export default function LandingPage() {
             className="fade-in fade-in-delay-1"
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(44px, 6vw, 80px)',
+              fontSize: 'clamp(36px, 5vw, 64px)',
               fontWeight: 800,
               lineHeight: 1.05,
               letterSpacing: '-2.5px',
@@ -201,7 +205,7 @@ export default function LandingPage() {
           >
             Hire smarter.<br />
             <span style={{
-              background: 'linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)',
+              background: 'linear-gradient(135deg, #1E40AF 0%, #0369A1 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -362,11 +366,11 @@ export default function LandingPage() {
                 >
                   <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1.4 }}>{item.icon}</span>
                   <div>
-                    <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600, marginBottom: 4, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <div style={{ fontSize: 12, color: '#FCA5A5', fontWeight: 600, marginBottom: 4, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       Problem
                     </div>
                     <div style={{ fontSize: 14, color: '#94A3B8', marginBottom: 8 }}>{item.problem}</div>
-                    <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginBottom: 4, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <div style={{ fontSize: 12, color: '#86EFAC', fontWeight: 600, marginBottom: 4, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       TalentBridge Fixes This
                     </div>
                     <div style={{ fontSize: 14, color: '#F9FAFB', fontWeight: 500 }}>{item.solution}</div>

@@ -162,24 +162,24 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
         {/* ── Actions ─────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
           {triage === 'GREEN' && (
-            <button className="btn-primary" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48 }}>
+            <button onClick={() => alert('Syncing verdict to ATS and auto-sending offer/next-round email...')} className="btn-primary" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48, cursor: 'pointer' }}>
               Fast-Track to Final Interview →
             </button>
           )}
           {triage === 'AMBER' && (
-            <button className="btn-accent" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48 }}>
+            <button onClick={() => alert('Opening internal Calendar scheduling system...')} className="btn-accent" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48, cursor: 'pointer' }}>
               Schedule Technical Review
             </button>
           )}
           {triage === 'RED' && (
-            <button className="btn-secondary" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48, color: '#EF4444', borderColor: '#FECACA' }}>
+            <button onClick={() => alert('Sending polite AI-generated feedback and decline email to candidate.')} className="btn-secondary" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48, color: '#EF4444', borderColor: '#FECACA', cursor: 'pointer' }}>
               Decline Candidate
             </button>
           )}
-          <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center', fontSize: 14, height: 48 }}>
+          <button onClick={() => alert('Opening candidate mail thread...')} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', fontSize: 14, height: 48, cursor: 'pointer' }}>
             Email
           </button>
-          <button className="btn-secondary" style={{ width: 48, height: 48, padding: 0, justifyContent: 'center' }}>
+          <button title="Download Full Transcript PDF" onClick={() => alert('Compiling and downloading high-fidelity PDF transcript...')} className="btn-secondary" style={{ width: 48, height: 48, padding: 0, justifyContent: 'center', cursor: 'pointer' }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
               <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -230,7 +230,7 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
                             <span style={{ fontSize: 14, fontWeight: 700, color: '#0A0C12', fontFamily: 'var(--font-display)' }}>{dim}</span>
                             {confidence && (
                               <span style={{ 
-                                fontSize: 10, fontWeight: 700, px: '6px', py: '2px', borderRadius: 4, 
+                                fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, 
                                 background: '#F1F5F9', color: '#64748B', fontFamily: 'var(--font-mono)' 
                               }}>
                                 {confidence.toUpperCase()}

@@ -1,6 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+/* Hide Next.js development indicator (the floating N button) */
+[data-nextjs-dialog-overlay],
+nextjs-portal,
+#nextjs-portal,
+nextjs-static-indicator,
+[data-nextjs-static-indicator] {
+  display: none !important;
+}
+
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    TALENTBRIDGE AI — PREMIUM DESIGN SYSTEM v3.0
    Inspired by Connectly.ai × CoreShift × Dribbble Social Media Platform

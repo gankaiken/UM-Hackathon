@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import SentinelTracker from '@/components/candidate/SentinelTracker';
+import DebugPanel from '@/components/candidate/DebugPanel';
 import { useSentinelStore } from '@/store/sentinelStore';
 import type { TranscriptEntry } from '@/lib/types';
 
@@ -34,6 +35,8 @@ export default function InterviewPage() {
   const [inputValue, setInputValue] = useState('');
   const [isWaiting, setIsWaiting] = useState(false);
   const [turnCount, setTurnCount] = useState(0);
+  const [debugMap, setDebugMap] = useState<Record<string, string>>({});
+  const [debugReasoning, setDebugReasoning] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -55,6 +58,14 @@ export default function InterviewPage() {
         setCandidateName(sessionData.candidateName);
         setRoleTitle(sessionData.mapperResult?.role_title ?? 'this role');
         setTurnCount(sessionData.turnCount);
+        setDebugMap(sessionData.coverageMap || {});
+        if (sessionData.transcript?.length > 0) {
+          const lastInq = sessionData.transcript.filter((t: any) => t.role === 'inquisitor').pop();
+          if (lastInq && lastInq.strategistJson?.reasoning) {
+            setDebugReasoning(lastInq.strategistJson.reasoning);
+          }
+        }
+
         if (sessionData.status === 'completed') { router.push(`/result/${sessionId}`); return; }
         if (sessionData.candidateName && sessionData.transcript.length > 0) {
           const restored: Message[] = sessionData.transcript.map((t: TranscriptEntry) => ({
@@ -90,7 +101,7 @@ export default function InterviewPage() {
     setIsWaiting(false);
   }
 
-  async function sendMessage(message: string, name: string, _role: string) {
+  async function sendMessage(message: string, name: string, _role: string, attempt = 1) {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     try {
@@ -101,8 +112,14 @@ export default function InterviewPage() {
         signal: abortRef.current.signal,
       });
       if (!res.ok || !res.body) throw new Error('Chat API error');
+      
       const aiMsgId = `ai-${Date.now()}`;
-      setMessages(prev => [...prev, { id: aiMsgId, role: 'inquisitor', content: '', isStreaming: true }]);
+      setMessages(prev => {
+        // Remove any previous error message if present
+        const clean = prev.filter(m => !m.id.startsWith('err-'));
+        return [...clean, { id: aiMsgId, role: 'inquisitor', content: '', isStreaming: true }];
+      });
+      
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -115,7 +132,7 @@ export default function InterviewPage() {
         for (const line of lines) {
           if (!line.startsWith('event:')) continue;
           const eventMatch = line.match(/^event: (\w+)/);
-          const dataMatch = line.match(/\ndata: (.+)/s);
+          const dataMatch = line.match(/\ndata: ([\s\S]+)/);
           if (!eventMatch || !dataMatch) continue;
           const event = eventMatch[1];
           let data: unknown;
@@ -125,9 +142,11 @@ export default function InterviewPage() {
             setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: m.content + chunk } : m));
           }
           if (event === 'done') {
-            const doneData = data as { closing: boolean; turnCount: number };
+            const doneData = data as { closing: boolean; turnCount: number; coverageMap?: Record<string, string>; reasoning?: string };
             setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, isStreaming: false } : m));
             setTurnCount(doneData.turnCount);
+            if (doneData.coverageMap) setDebugMap(doneData.coverageMap);
+            if (doneData.reasoning) setDebugReasoning(doneData.reasoning);
             if (doneData.closing) { setState('closing'); setTimeout(triggerVerdict, 1500); }
           }
         }
@@ -135,7 +154,18 @@ export default function InterviewPage() {
       inputRef.current?.focus();
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
-        setMessages(prev => [...prev, { id: `err-${Date.now()}`, role: 'inquisitor', content: 'Something went wrong. Please try again.' }]);
+        if (attempt < 3) {
+          setMessages(prev => {
+            const clean = prev.filter(m => !m.id.startsWith('err-'));
+            return [...clean, { id: `err-${Date.now()}`, role: 'inquisitor', content: `Connection slow. Reconnecting (attempt ${attempt}/3)...` }];
+          });
+          setTimeout(() => sendMessage(message, name, _role, attempt + 1), 2500);
+        } else {
+          setMessages(prev => {
+            const clean = prev.filter(m => !m.id.startsWith('err-'));
+            return [...clean, { id: `err-${Date.now()}`, role: 'inquisitor', content: 'Network connection lost. Please refresh the page to resume.' }];
+          });
+        }
       }
     }
   }
@@ -198,6 +228,7 @@ export default function InterviewPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', flexDirection: 'column' }}>
       <SentinelTracker />
+      <DebugPanel coverageMap={debugMap} reasoning={debugReasoning} />
       
       {/* ── HEADER ── */}
       <header style={{ 

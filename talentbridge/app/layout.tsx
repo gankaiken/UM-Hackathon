@@ -1,11 +1,20 @@
-// app/layout.tsx — Root Layout
 import type { Metadata } from 'next';
 import './globals.css';
 import GlobalNav from '@/components/GlobalNav';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'TalentBridge AI — Authentic Talent Verification Platform',
   description: "Malaysia's first AI recruitment platform where no one gets ghosted, every shortlisting decision is explainable, and every \"No\" comes with a \"Here's how.\"",
+  icons: {
+    icon: [
+      {
+        url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232563EB'/><path d='M17 5L7 17h9l-1 10 10-12h-9l1-10z' fill='white'/></svg>",
+        type: 'image/svg+xml',
+      }
+    ],
+    shortcut: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232563EB'/><path d='M17 5L7 17h9l-1 10 10-12h-9l1-10z' fill='white'/></svg>",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <GlobalNav />
         {children}
+        <Footer />
       </body>
     </html>
   );

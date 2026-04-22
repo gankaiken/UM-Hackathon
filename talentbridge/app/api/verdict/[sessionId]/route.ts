@@ -14,9 +14,9 @@ export const runtime = 'nodejs';
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
-  const { sessionId } = params;
+  const { sessionId } = await params;
 
   try {
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
@@ -26,8 +26,8 @@ export async function POST(
     if (!jd) return NextResponse.json({ error: 'JD not found' }, { status: 404 });
 
     const mapperResult = JSON.parse(jd.mapperOutput);
-    const sentinelData: SentinelData = JSON.parse(session.sentinelData);
-    const styleAnalysis: StyleAnalysisResult | null = session.styleAnalysis
+    const sentinelData: SentinelData = JSON.parse(session.sentinelData || '{}');
+    let styleAnalysis: StyleAnalysisResult | null = session.styleAnalysis
       ? JSON.parse(session.styleAnalysis)
       : null;
 
@@ -44,6 +44,20 @@ export async function POST(
       turnNumber: t.turnNumber,
       createdAt: t.createdAt,
     }));
+
+    // Trigger Language Style Analyzer conditionally if Sentinel Stage 2 fires
+    // Stage 2: focus_loss_events > 3 AND paste_events > 1
+    if (!styleAnalysis && sentinelData.focus_loss_events > 3 && sentinelData.paste_events > 1) {
+      console.log(`[Verdict] Sentinel Stage 2 detected. Triggering Language Style Analyzer...`);
+      const { runLanguageStyleAnalyzer } = await import('@/lib/agents/langStyleAnalyzer');
+      styleAnalysis = await runLanguageStyleAnalyzer(transcript);
+      
+      // Save it to the session
+      await db.update(sessions)
+        .set({ styleAnalysis: JSON.stringify(styleAnalysis) })
+        .where(eq(sessions.id, sessionId))
+        .run();
+    }
 
     // Run Auditor with retry up to 2 times
     let verdict = null;
@@ -100,10 +114,10 @@ export async function POST(
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const { sessionId } = params;
+    const { sessionId } = await params;
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });

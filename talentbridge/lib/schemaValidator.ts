@@ -24,7 +24,7 @@ export function validateAuditorOutput(
     if (score.score < 0 || score.score > 100) {
       errors.push(`INVALID SCORE for "${dim}": ${score.score} (must be 0-100)`);
     }
-    if (!['high', 'medium', 'low'].includes(score.confidence)) {
+    if (score.confidence && !['high', 'medium', 'low'].includes(score.confidence)) {
       errors.push(`INVALID CONFIDENCE for "${dim}": ${score.confidence}`);
     }
   }
@@ -68,6 +68,7 @@ export function validateAuditorOutput(
   // Rule 8: style_consistency_score < 40 must trigger human review
   if (
     verdict.style_consistency_score !== null &&
+    verdict.style_consistency_score !== undefined &&
     verdict.style_consistency_score < 40 &&
     !verdict.human_review_required
   ) {

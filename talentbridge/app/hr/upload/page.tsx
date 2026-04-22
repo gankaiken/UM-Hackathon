@@ -343,7 +343,7 @@ export default function PostJobPage() {
               </Link>
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/jobs/${result.id}/apply`);
+                  navigator.clipboard.writeText(`${window.location.origin}/jobs/${result.jdId}/apply`);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }} 

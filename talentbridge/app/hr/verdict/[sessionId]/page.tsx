@@ -13,12 +13,13 @@ export const dynamic = 'force-dynamic';
 export default async function VerdictDetailPage({
   params,
 }: {
-  params: { sessionId: string };
+  params: Promise<{ sessionId: string }>;
 }) {
+  const { sessionId } = await params;
   const session = await db
     .select()
     .from(sessions)
-    .where(eq(sessions.id, params.sessionId))
+    .where(eq(sessions.id, sessionId))
     .get();
 
   if (!session || !session.verdict) notFound();
@@ -32,7 +33,7 @@ export default async function VerdictDetailPage({
   const dbTranscripts = await db
     .select()
     .from(transcripts)
-    .where(eq(transcripts.sessionId, params.sessionId))
+    .where(eq(transcripts.sessionId, sessionId))
     .orderBy(asc(transcripts.turnNumber))
     .all();
 
