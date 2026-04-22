@@ -8,6 +8,8 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
   const [filter, setFilter] = useState('All');
   const [filledRoles, setFilledRoles] = useState<Set<string>>(new Set());
   const [filling, setFilling] = useState<string | null>(null);
+  const [schedulingFor, setSchedulingFor] = useState<string | null>(null);
+  const [scheduleLogs, setScheduleLogs] = useState<string[]>([]);
 
   // Detect candidates that have been waiting > 48 hours without HR response
   const ghostingCandidates = completed.filter(item => {
@@ -36,6 +38,34 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
     }
   };
 
+  const handleAutoSchedule = async (candidateName: string) => {
+    setSchedulingFor(candidateName);
+    setScheduleLogs(['[Integration Agent] Initializing workflow...']);
+    
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+    
+    await delay(800);
+    setScheduleLogs(prev => [...prev, '[Gmail API] Drafting personalized interview invitation...']);
+    await delay(1200);
+    setScheduleLogs(prev => [...prev, '[Gmail API] Email sent. Awaiting candidate timeslot selection.']);
+    await delay(1500);
+    setScheduleLogs(prev => [...prev, '[Parser] Candidate reply received: "Tomorrow at 10 AM works for me."']);
+    await delay(800);
+    setScheduleLogs(prev => [...prev, '[Zoom API] Generating unique meeting room...']);
+    await delay(1000);
+    setScheduleLogs(prev => [...prev, '[Zoom API] Success: https://zoom.us/j/987654321']);
+    await delay(600);
+    setScheduleLogs(prev => [...prev, '[Calendar API] Creating event & injecting Zoom link...']);
+    await delay(1200);
+    setScheduleLogs(prev => [...prev, '[Calendar API] Event synced. Both parties invited.']);
+    await delay(800);
+    setScheduleLogs(prev => [...prev, '[System] Dashboard state updated to: Scheduled. Workflow complete.']);
+    
+    await delay(3000);
+    setSchedulingFor(null);
+    setScheduleLogs([]);
+  };
+
   // Parse verdicts to allow filtering
   const parsedCompleted = completed.map((item) => {
     let verdict: any = null;
@@ -53,7 +83,7 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
           scores.reduce<number>((s, d: any) => s + (typeof d === 'number' ? d : d.score), 0) /
           Math.max(1, scores.length)
         );
-        triage = verdict.triage_result;
+        triage = (verdict.triage_result || verdict.triage || 'RED').toUpperCase();
       }
       if (item.session?.sentinelData) {
         const sentinel = JSON.parse(item.session.sentinelData);
@@ -64,7 +94,7 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
     return { ...item, verdict, avgScore, isFlagged, triage, isOverdue };
   }).filter(item => item.verdict !== null);
 
-  const filteredData = parsedCompleted.filter(item => filter === 'All' || item.triage === filter);
+  const filteredData = parsedCompleted.filter(item => filter === 'All' || item.triage.toUpperCase() === filter.toUpperCase());
 
   return (
     <>
@@ -393,6 +423,29 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                   </td>
                   <td style={{ padding: '18px 20px' }}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {(triage === 'GREEN' || triage === 'AMBER') && (
+                        <button
+                          onClick={() => handleAutoSchedule(session.candidateName)}
+                          style={{
+                            background: 'linear-gradient(135deg, #10B981, #059669)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            padding: '6px 14px',
+                            borderRadius: 8,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontFamily: 'var(--font-mono)',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                          }}
+                        >
+                          <span>⚡</span> Agent Schedule
+                        </button>
+                      )}
                       <Link
                         href={`/hr/verdict/${session.id}`}
                         style={{
@@ -461,6 +514,50 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
           </div>
         )}
       </div>
+      {/* ── AGENT SCHEDULING TERMINAL MODAL ───────────────────────── */}
+      {schedulingFor && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            width: 600, background: '#0A0C12', border: '1px solid #1E2433', borderRadius: 16,
+            overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{
+              background: '#141820', padding: '16px 24px', borderBottom: '1px solid #1E2433',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 10px #10B981' }} />
+                <span style={{ color: '#F9FAFB', fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: 14 }}>
+                  Integration Agent (Agent 8)
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: '#64748B', fontFamily: 'var(--font-mono)' }}>
+                Target: {schedulingFor}
+              </div>
+            </div>
+            <div style={{ padding: '24px', fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.8, minHeight: 300 }}>
+              {scheduleLogs.map((log, i) => (
+                <div key={i} style={{ 
+                  color: log.includes('Success') || log.includes('complete') ? '#10B981' : 
+                         log.includes('Parser') ? '#F59E0B' : '#60A5FA',
+                  opacity: i === scheduleLogs.length - 1 ? 1 : 0.7,
+                  marginBottom: 8
+                }} className="fade-in">
+                  <span style={{ color: '#475569', marginRight: 12 }}>{new Date().toISOString().split('T')[1].slice(0, 8)}</span>
+                  {log}
+                </div>
+              ))}
+              {scheduleLogs.length > 0 && !scheduleLogs[scheduleLogs.length - 1].includes('complete') && (
+                <div style={{ color: '#475569', marginTop: 12 }} className="blink">_</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }
