@@ -1,19 +1,23 @@
 import { db } from '@/lib/db';
 import { jdCache, sessions, transcripts } from '@/lib/db/schema';
 import { v4 as uuid } from 'uuid';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import type { Confidence, VerdictResult } from '@/lib/types';
 import { DEFAULT_SENTINEL_DATA, normalizeSentinelData } from '@/lib/sentinel';
+import { requireHrUser } from '@/lib/hrAuth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const user = requireHrUser(req);
+    if (user instanceof NextResponse) return user;
+
     // 1. Create a dummy JD
     const jdId1 = uuid();
     await db.insert(jdCache).values({
       id: jdId1,
-      employerId: 'nexus-01',
+      employerId: user.id,
       rawJd: 'Senior Product Marketing Manager...',
       roleTitle: 'Senior Product Marketing Manager',
       mapperOutput: JSON.stringify({
@@ -29,7 +33,7 @@ export async function GET() {
     const jdId2 = uuid();
     await db.insert(jdCache).values({
       id: jdId2,
-      employerId: 'nexus-01',
+      employerId: user.id,
       rawJd: 'Junior Frontend Developer...',
       roleTitle: 'Junior Frontend Developer',
       mapperOutput: JSON.stringify({
@@ -77,6 +81,7 @@ export async function GET() {
       await db.insert(sessions).values({
         id: sId,
         jdId: c.jd,
+        employerId: user.id,
         candidateName: c.name,
         status: 'completed',
         turnCount: 8,
@@ -102,6 +107,7 @@ export async function GET() {
         await db.insert(sessions).values({
           id: uuid(),
           jdId: jdId1,
+          employerId: user.id,
           candidateName: `Active User ${i+1}`,
           status: 'active',
           turnCount: Math.floor(Math.random() * 5) + 1,

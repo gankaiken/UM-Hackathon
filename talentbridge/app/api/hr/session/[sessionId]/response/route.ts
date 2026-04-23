@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { sessions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { HrResponse } from '@/lib/types';
+import { assertHrOwnsSession, requireHrUser } from '@/lib/hrAuth';
 
 const VALID_RESPONSES: HrResponse[] = ['offer', 'hold', 'reject'];
 
@@ -12,6 +13,9 @@ export async function POST(
 ) {
   try {
     const { sessionId } = await params;
+    const user = requireHrUser(req);
+    if (user instanceof NextResponse) return user;
+
     const body = await req.json();
     const response = body?.response as HrResponse | undefined;
 
@@ -19,10 +23,9 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid HR response' }, { status: 400 });
     }
 
-    const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    }
+    const ownership = await assertHrOwnsSession(user, sessionId);
+    if (!ownership.ok) return ownership.response;
+    const session = ownership.session;
 
     const hrRespondedAt = Date.now();
     await db.update(sessions)

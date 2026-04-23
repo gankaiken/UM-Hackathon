@@ -7,6 +7,8 @@ import { sessions, transcripts, jdCache, agentLogs } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import VerdictCard from '@/components/hr/VerdictCard';
+import { getCurrentHrUser } from '@/lib/hrAuth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +17,9 @@ export default async function VerdictDetailPage({
 }: {
   params: Promise<{ sessionId: string }>;
 }) {
+  const user = await getCurrentHrUser();
+  if (!user) redirect('/login');
+
   const { sessionId } = await params;
   const session = await db
     .select()
@@ -23,6 +28,7 @@ export default async function VerdictDetailPage({
     .get();
 
   if (!session) notFound();
+  if (session.employerId !== user.id) notFound();
   if (!session.verdict && session.sessionLifecycleStatus !== 'expired') notFound();
 
   const jd = await db

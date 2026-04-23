@@ -26,9 +26,9 @@ interface ResponseOverride {
 }
 
 interface ScheduleOverride {
-  interviewScheduledAt: number;
-  interviewMeetingLink: string;
-  interviewScheduleNote: string;
+  interviewScheduledAt: number | null;
+  interviewMeetingLink: string | null;
+  interviewScheduleNote: string | null;
 }
 
 function getAverageVerdictScore(verdict: VerdictResult): number {
@@ -86,7 +86,7 @@ export default function ClientPipeline({
 
   const handleAutoSchedule = async (sessionId: string, candidateName: string) => {
     setSchedulingFor(candidateName);
-    setScheduleLogs(['[Demo Scheduling] Preparing a sample follow-up workflow...']);
+    setScheduleLogs(['[Scheduling] Preparing the follow-up workflow...']);
     try {
       const res = await fetch(`/api/hr/session/${sessionId}/schedule-preview`, { method: 'POST' });
       const data = await res.json();
@@ -95,22 +95,23 @@ export default function ClientPipeline({
         return;
       }
 
-      setScheduleOverrides(prev => ({
-        ...prev,
-        [sessionId]: {
-          interviewScheduledAt: data.interviewScheduledAt,
-          interviewMeetingLink: data.interviewMeetingLink,
-          interviewScheduleNote: data.interviewScheduleNote,
-        },
-      }));
+      if (data.interviewScheduledAt || data.interviewMeetingLink || data.interviewScheduleNote) {
+        setScheduleOverrides(prev => ({
+          ...prev,
+          [sessionId]: {
+            interviewScheduledAt: data.interviewScheduledAt ?? null,
+            interviewMeetingLink: data.interviewMeetingLink ?? null,
+            interviewScheduleNote: data.interviewScheduleNote ?? null,
+          },
+        }));
+      }
 
       setScheduleLogs(prev => [
         ...prev,
-        '[Demo Scheduling] Drafting a sample interview invitation...',
-        '[Demo Scheduling] Preparing candidate-facing schedule details...',
-        `[Demo Scheduling] Preview slot reserved: ${new Date(data.interviewScheduledAt).toLocaleString('en-MY')}`,
-        `[Demo Scheduling] Preview meeting link ready: ${data.interviewMeetingLink}`,
-        '[System] Demo workflow finished. No live external services were called.',
+        '[Scheduling] Drafting the candidate invitation...',
+        '[Scheduling] Preparing candidate-facing schedule details...',
+        '[Scheduling] Candidate scheduling link prepared.',
+        '[System] Email uses SMTP when configured; Calendar requires Google connection; Zoom remains demo-scaffolded.',
       ]);
     } catch {
       setScheduleLogs(prev => [...prev, '[System] Network error while creating the scheduling preview.']);
@@ -291,7 +292,7 @@ export default function ClientPipeline({
                 fontSize: 16, fontWeight: 700, color: '#F9FAFB',
                 fontFamily: 'var(--font-display)', marginBottom: 8,
               }}>
-                Optimal Operation
+                Demo Pipeline Healthy
               </div>
               <div style={{
                 background: '#1E2433', borderRadius: 6, height: 6, overflow: 'hidden', marginBottom: 16,
@@ -513,6 +514,8 @@ export default function ClientPipeline({
                 );
               }
 
+              if (!verdict) return null;
+
               const triageMeta = {
                 GREEN: { color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
                 AMBER: { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
@@ -610,7 +613,7 @@ export default function ClientPipeline({
                       )}
                       {interviewScheduledAt ? (
                         <span style={{ fontSize: 10, color: '#34D399', fontFamily: 'var(--font-body)' }}>
-                          Interview scheduled preview ready
+                          Scheduling link prepared
                         </span>
                       ) : null}
                       {session.disputeStatus === 'requested' ? (
@@ -782,7 +785,7 @@ export default function ClientPipeline({
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 10px #10B981' }} />
                 <span style={{ color: '#F9FAFB', fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: 14 }}>
-                  Scheduling Demo (Agent 8 Preview)
+                  Scheduling Workflow
                 </span>
               </div>
               <div style={{ fontSize: 12, color: '#64748B', fontFamily: 'var(--font-mono)' }}>

@@ -18,10 +18,16 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+    if (session.status !== 'active') {
+      return NextResponse.json({ error: 'This interview session is no longer active' }, { status: 409 });
+    }
 
     const jd = await db.select().from(jdCache).where(eq(jdCache.id, session.jdId)).get();
     if (!jd) {
       return NextResponse.json({ error: 'JD not found' }, { status: 404 });
+    }
+    if (jd.employerId !== session.employerId) {
+      return NextResponse.json({ error: 'Session ownership mismatch' }, { status: 403 });
     }
 
     const turnNumber = session.turnCount + 1;
@@ -79,7 +85,7 @@ export async function POST(req: NextRequest) {
       turnCount: turnNumber,
       coverageMap: JSON.stringify(strategistResult.coverage_map),
       sentinelData: JSON.stringify(mergedSentinelData),
-    }).where(eq(sessions.id, sessionId));
+    }).where(eq(sessions.id, sessionId)).run();
 
     // 4. Inquisitor Agent (Generate response stream)
     const stream = await runInquisitorStream(
@@ -143,7 +149,8 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('[Chat API Error]', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

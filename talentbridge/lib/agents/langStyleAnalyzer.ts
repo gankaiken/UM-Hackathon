@@ -21,26 +21,32 @@ export async function runLanguageStyleAnalyzer(
     return mockStyleAnalyzer(earlyHalf + '\n---\n' + lateHalf);
   }
 
-  return await executeAgent(
-    () => zhipuJson<StyleAnalysisResult>({
-      messages: [
-        { role: 'system', content: STYLE_ANALYZER_PROMPT },
-        {
-          role: 'user',
-          content: `EARLY HALF (first ${mid} responses):
+  try {
+    return await executeAgent(
+      () => zhipuJson<StyleAnalysisResult>({
+        messages: [
+          { role: 'system', content: STYLE_ANALYZER_PROMPT },
+          {
+            role: 'user',
+            content: `EARLY HALF (first ${mid} responses):
 ${earlyHalf}
 
 LATE HALF (remaining ${candidateTurns.length - mid} responses):
 ${lateHalf}
 
 Analyze for style discontinuity and output the JSON verdict.`,
-        },
-      ],
-      temperature: 0.2,
-      max_tokens: 1024,
-    }),
-    { agentName: 'LanguageStyleAnalyzer' }
-  );
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 1024,
+      }),
+      { agentName: 'LanguageStyleAnalyzer' }
+    );
+  } catch (error) {
+    console.warn('[LanguageStyleAnalyzer] Z.ai call failed; falling back to mock mode:', error instanceof Error ? error.message : error);
+    logMockUsage('LanguageStyleAnalyzer', undefined, 'Z.ai failure');
+    return mockStyleAnalyzer(earlyHalf + '\n---\n' + lateHalf);
+  }
 }
 
 const STYLE_ANALYZER_PROMPT = `You are the Language Style Analyzer for TalentBridge AI.

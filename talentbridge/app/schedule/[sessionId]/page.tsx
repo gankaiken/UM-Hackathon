@@ -4,12 +4,29 @@
 import { useState, useEffect, use } from 'react';
 import { motion } from 'framer-motion';
 
+interface ScheduleSession {
+  candidateEmail: string;
+  candidateName: string;
+  scheduledSlot: string | null;
+}
+
+interface ScheduleJd {
+  employerId: string;
+  roleTitle: string;
+}
+
+interface ScheduleSlot {
+  start: string;
+  end: string;
+  available: boolean;
+}
+
 export default function CandidateSchedulingPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
-  const [session, setSession] = useState<any>(null);
-  const [jd, setJd] = useState<any>(null);
-  const [slots, setSlots] = useState<any[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  const [session, setSession] = useState<ScheduleSession | null>(null);
+  const [jd, setJd] = useState<ScheduleJd | null>(null);
+  const [slots, setSlots] = useState<ScheduleSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<ScheduleSlot | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -61,12 +78,12 @@ export default function CandidateSchedulingPage({ params }: { params: Promise<{ 
           <div style={{ width: 64, height: 64, background: '#10B981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: 'white', fontSize: 32 }}>✓</div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0A0C12', marginBottom: 12 }}>Interview Confirmed!</h1>
           <p style={{ color: '#64748B', lineHeight: 1.6, marginBottom: 24 }}>
-            We've sent a calendar invitation to <strong>{session.candidateEmail}</strong>. Please check your inbox for the Zoom details.
+            We&apos;ve saved your selected time and sent a confirmation to <strong>{session?.candidateEmail}</strong>. Meeting details will be shared by the hiring team.
           </p>
           <div style={{ background: '#F8FAFC', padding: 16, borderRadius: 12, border: '1px solid #E2E8F0', textAlign: 'left' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: 4 }}>Time Slot</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#334155' }}>
-              {new Date(JSON.parse(session.scheduledSlot).start).toLocaleString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+              {session?.scheduledSlot ? new Date(JSON.parse(session.scheduledSlot).start).toLocaleString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Confirmed'}
             </div>
           </div>
         </motion.div>
@@ -79,7 +96,7 @@ export default function CandidateSchedulingPage({ params }: { params: Promise<{ 
       <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0A0C12', letterSpacing: '-1px', marginBottom: 12 }}>Schedule Your Interview</h1>
-          <p style={{ color: '#64748B', fontSize: 16 }}>Hi {session.candidateName}, please select a convenient time to meet with the {jd.employerId === 'default' ? 'Team' : jd.employerId} for the {jd.roleTitle} role.</p>
+          <p style={{ color: '#64748B', fontSize: 16 }}>Hi {session?.candidateName}, please select a convenient time to meet with the {jd?.employerId === 'default' ? 'Team' : jd?.employerId} for the {jd?.roleTitle} role.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 40 }}>

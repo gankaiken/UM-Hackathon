@@ -43,8 +43,9 @@ export async function runDimensionQA(
     return mockDimensionQA(mapper);
   }
 
-  return await executeAgent(
-    () => zhipuJson<DimensionQAResult>({
+  try {
+    return await executeAgent(
+      () => zhipuJson<DimensionQAResult>({
       messages: [
         { role: 'system', content: QA_SYSTEM_PROMPT },
         {
@@ -57,6 +58,11 @@ export async function runDimensionQA(
       temperature: 0.2,
       max_tokens: 512,
     }),
-    { agentName: 'DimensionQA' }
-  );
+      { agentName: 'DimensionQA' }
+    );
+  } catch (error) {
+    console.warn('[DimensionQA] Z.ai call failed; falling back to mock mode:', error instanceof Error ? error.message : error);
+    logMockUsage('DimensionQA', undefined, 'Z.ai failure');
+    return mockDimensionQA(mapper);
+  }
 }

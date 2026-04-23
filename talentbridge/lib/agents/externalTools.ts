@@ -8,7 +8,7 @@ export interface OrchestrationResult {
   success: boolean;
   mode: 'live' | 'trace';
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 /**

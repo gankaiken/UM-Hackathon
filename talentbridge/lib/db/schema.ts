@@ -2,6 +2,14 @@
 // Drizzle ORM schema for TalentBridge AI — SQLite tables
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
+// HR users. The user id doubles as the employer ownership key.
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
 // ─── JD Cache ──────────────────────────────────────────────────────────────────
 // One row per JD upload. Mapper + DimensionQA run once; output cached here.
 export const jdCache = sqliteTable('jd_cache', {
@@ -25,6 +33,7 @@ export const jdCache = sqliteTable('jd_cache', {
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),                    // UUID — this IS the unique link token
   jdId: text('jd_id').notNull(),                  // FK → jd_cache.id
+  employerId: text('employer_id').notNull().default('default'),
   candidateName: text('candidate_name').notNull().default(''),
   // Extended candidate profile (step 2 of apply form)
   candidateEmail: text('candidate_email').default(''),
@@ -124,6 +133,8 @@ export const transcripts = sqliteTable('transcripts', {
 // Type exports for use throughout the app
 export type JdCache = typeof jdCache.$inferSelect;
 export type NewJdCache = typeof jdCache.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Transcript = typeof transcripts.$inferSelect;

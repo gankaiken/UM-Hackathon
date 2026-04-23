@@ -1,12 +1,12 @@
 // app/api/auth/connect/google/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getGoogleAuthUrl } from '@/lib/auth';
+import { requireHrUser } from '@/lib/hrAuth';
 
 export async function GET(req: NextRequest) {
-  // In a real app, we would get the employerId from the session.
-  // For the demo, we'll use 'default' or a query param.
-  const employerId = req.nextUrl.searchParams.get('employerId') || 'default';
+  const user = requireHrUser(req);
+  if (user instanceof NextResponse) return user;
   
-  const url = getGoogleAuthUrl(employerId);
+  const url = getGoogleAuthUrl(user.id);
   return NextResponse.redirect(url);
 }

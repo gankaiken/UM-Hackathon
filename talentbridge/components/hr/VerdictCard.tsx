@@ -3,14 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { HrResponse, VerdictResult, SentinelData, StrategistResult } from '@/lib/types';
-import type { Session, JdCache, Transcript } from '@/lib/db/schema';
+import type { Session, JdCache, Transcript, AgentLog } from '@/lib/db/schema';
+import type { OrchestrationState } from '@/lib/agents/integrationCoordinator';
 import { normalizeSentinelData } from '@/lib/sentinel';
 
 interface Props {
   session: Session;
   jd: JdCache | null;
   transcripts: Transcript[];
-  agentLogs?: any[]; // Using any for simplicity in this turn
+  agentLogs?: AgentLog[];
 }
 
 const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: string; border: string }> = {
@@ -23,7 +24,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
   const verdict: VerdictResult = JSON.parse(session.verdict!);
   const sentinelData: SentinelData = normalizeSentinelData(JSON.parse(session.sentinelData));
   const [activeTab, setActiveTab] = useState<'overview' | 'trace' | 'sentinel' | 'transcript' | 'agent_logs'>('overview');
-  const [orchestrationState, setOrchestrationState] = useState<any>(
+  const [orchestrationState, setOrchestrationState] = useState<OrchestrationState | null>(
     session.orchestrationState ? JSON.parse(session.orchestrationState) : null
   );
   const [hrResponse, setHrResponse] = useState<HrResponse | null>(
@@ -341,7 +342,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
                 {new Date(interviewScheduledAt).toLocaleString('en-MY')}
               </div>
               <div style={{ fontSize: 12, color: '#047857', fontFamily: 'var(--font-body)', marginBottom: 8 }}>
-                {interviewScheduleNote || 'Demo scheduling preview stored. External email/calendar/Zoom remain simulated.'}
+                {interviewScheduleNote || 'Scheduling state stored. Email can run via SMTP; Calendar requires Google connection; Zoom remains demo-scaffolded.'}
               </div>
               {interviewMeetingLink ? (
                 <a
@@ -389,14 +390,14 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
             className="btn-secondary"
             style={{ flex: 1, justifyContent: 'center', fontSize: 14, height: 48, cursor: activeHrResponse === 'offer' ? 'pointer' : 'not-allowed', opacity: activeHrResponse === 'offer' ? 1 : 0.55 }}
           >
-            {schedulingPreview ? 'Preparing Preview...' : 'Demo Scheduling Preview'}
+            {schedulingPreview ? 'Preparing Scheduling...' : 'Prepare Scheduling Link'}
           </button>
           <button
-            onClick={() => alert('Demo only: outbound email is not connected in this build.')}
+            onClick={() => alert('Email sending is handled by the scheduling flow when SMTP environment variables are configured.')}
             className="btn-secondary"
             style={{ flex: 1, justifyContent: 'center', fontSize: 14, height: 48, cursor: 'pointer' }}
           >
-            Email Preview
+            Email Status
           </button>
           <button
             title="Download Full Transcript PDF"
@@ -552,7 +553,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {orchestrationState.steps.map((step: any, idx: number) => (
+                  {orchestrationState.steps.map((step, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
                       <div style={{
                         width: 20, height: 20, borderRadius: '50%',

@@ -21,15 +21,11 @@ export async function GET(
     }
 
     const jd = db.select().from(jdCache).where(eq(jdCache.id, session.jdId)).get();
+    if (!jd || jd.employerId !== session.employerId) {
+      return NextResponse.json({ error: 'Scheduling record is invalid' }, { status: 403 });
+    }
     
-    // Default slots for demo if none stored in JD
-    const defaultSlots = [
-      { start: new Date(Date.now() + 86400000 + 3600000).toISOString(), end: new Date(Date.now() + 86400000 + 7200000).toISOString(), available: true },
-      { start: new Date(Date.now() + 172800000 + 3600000).toISOString(), end: new Date(Date.now() + 172800000 + 7200000).toISOString(), available: true },
-      { start: new Date(Date.now() + 259200000 + 3600000).toISOString(), end: new Date(Date.now() + 259200000 + 7200000).toISOString(), available: true },
-    ];
-
-    const slots = jd?.timeslots ? JSON.parse(jd.timeslots) : defaultSlots;
+    const slots = jd?.timeslots ? JSON.parse(jd.timeslots) : getDefaultSlots();
 
     return NextResponse.json({
       session: {
@@ -46,4 +42,17 @@ export async function GET(
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+function getDefaultSlots() {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return [1, 2, 3].map((dayOffset, index) => {
+    const start = new Date(startOfToday);
+    start.setDate(start.getDate() + dayOffset);
+    start.setHours(10 + index, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(start.getHours() + 1);
+    return { start: start.toISOString(), end: end.toISOString(), available: true };
+  });
 }

@@ -5,16 +5,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { jdCache, sessions } from '@/lib/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
+import { assertHrOwnsJd, requireHrUser } from '@/lib/hrAuth';
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ jdId: string }> }
 ) {
   try {
     const { jdId } = await params;
+    const user = requireHrUser(req);
+    if (user instanceof NextResponse) return user;
 
-    const jd = await db.select().from(jdCache).where(eq(jdCache.id, jdId)).get();
-    if (!jd) return NextResponse.json({ error: 'Role not found' }, { status: 404 });
+    const ownership = await assertHrOwnsJd(user, jdId);
+    if (!ownership.ok) return ownership.response;
+    const jd = ownership.jd;
     if (jd.roleFilled) return NextResponse.json({ error: 'Role already marked as filled' }, { status: 409 });
 
     const now = Date.now();

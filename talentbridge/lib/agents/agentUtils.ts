@@ -3,7 +3,6 @@
 
 import { db } from '../db';
 import { agentLogs } from '../db/schema';
-import { env } from '../env';
 
 export interface AgentExecutionOptions {
   agentName: string;
@@ -93,14 +92,14 @@ async function saveAgentLog(data: {
 /**
  * Formats a generic "Using Mock" log when API keys are missing.
  */
-export function logMockUsage(agentName: string, sessionId?: string) {
-  console.log(`[${agentName}] Using mock (no API key)`);
+export function logMockUsage(agentName: string, sessionId?: string, reason = 'no API key') {
+  console.log(`[${agentName}] Using mock (${reason})`);
   saveAgentLog({
     sessionId,
     agentName,
     status: 'success',
     latency: 0,
-    output: 'MOCK_OUTPUT',
+    output: `MOCK_OUTPUT (${reason})`,
     createdAt: Date.now(),
   }).catch(() => {});
 }

@@ -63,6 +63,7 @@ export interface SentinelData {
 
 export type SentinelStage = 'clean' | 'stage_1_alert' | 'stage_2_alert';
 export type HrResponse = 'offer' | 'hold' | 'reject';
+export type DisputeResolution = 'upheld' | 'revised' | 'fresh_interview';
 
 // ─── Language Style Analyzer ─────────────────────────────────────────────────
 export interface StyleAnalysisResult {
@@ -144,6 +145,10 @@ export interface SessionState {
   sessionId: string;
   jdId: string;
   candidateName: string;
+  roleTitle?: string | null;
+  companyName?: string | null;
+  hrResponse?: HrResponse | null;
+  scheduledSlot?: string | null;
   status: string;
   foundJob?: boolean;
   foundJobAt?: number | null;

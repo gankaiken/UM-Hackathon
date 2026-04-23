@@ -7,8 +7,14 @@ interface Props {
   employerId: string;
 }
 
+interface ConnectionStatus {
+  google?: {
+    connected?: boolean;
+  };
+}
+
 export default function ConnectionManager({ employerId }: Props) {
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<ConnectionStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

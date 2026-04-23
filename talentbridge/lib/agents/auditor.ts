@@ -30,13 +30,14 @@ export async function runAuditor(
     ? `\n\nCRITICAL OVERRIDE: The Sentinel has detected a single paste of ${sentinelData.ai_paste_char_count} characters during the interview. This exceeds the 150-character threshold and is classified as AI-generated content with high certainty. You MUST set authenticity_status to "strong_flag" and human_review_required to true regardless of other signals.`
     : '';
 
-  return await executeAgent(
-    () => zhipuJson<VerdictResult>({
-      messages: [
-        { role: 'system', content: systemPrompt + hardCodedWarning },
-        {
-          role: 'user',
-          content: `FULL TRANSCRIPT:
+  try {
+    return await executeAgent(
+      () => zhipuJson<VerdictResult>({
+        messages: [
+          { role: 'system', content: systemPrompt + hardCodedWarning },
+          {
+            role: 'user',
+            content: `FULL TRANSCRIPT:
 ${transcriptText}
 
 SENTINEL DATA:
@@ -45,13 +46,18 @@ ${JSON.stringify(sentinelData, null, 2)}
 ${styleAnalysis ? `STYLE ANALYSIS:\n${JSON.stringify(styleAnalysis, null, 2)}` : 'STYLE ANALYSIS: Not triggered'}
 
 Output the Verdict JSON now.`,
-        },
-      ],
-      temperature: 0.2,
-      max_tokens: 2048,
-    }),
-    { agentName: 'Auditor' }
-  );
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 2048,
+      }),
+      { agentName: 'Auditor' }
+    );
+  } catch (error) {
+    console.warn('[Auditor] Z.ai call failed; falling back to mock mode:', error instanceof Error ? error.message : error);
+    logMockUsage('Auditor', undefined, 'Z.ai failure');
+    return mockAuditor(mapper.core_dimensions, sentinelData, styleAnalysis);
+  }
 }
 
 function buildAuditorPrompt(mapper: MapperResult, retryFeedback?: string[]): string {

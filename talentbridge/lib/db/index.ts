@@ -42,6 +42,13 @@ function createDb() {
 // This keeps the hackathon setup to a single `npm run dev`.
 function initSchema(sqlite: Database.Database) {
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS jd_cache (
       id TEXT PRIMARY KEY,
       employer_id TEXT NOT NULL DEFAULT 'default',
@@ -59,6 +66,7 @@ function initSchema(sqlite: Database.Database) {
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       jd_id TEXT NOT NULL,
+      employer_id TEXT NOT NULL DEFAULT 'default',
       candidate_name TEXT NOT NULL DEFAULT '',
       candidate_email TEXT DEFAULT '',
       candidate_phone TEXT DEFAULT '',
@@ -135,6 +143,7 @@ function initSchema(sqlite: Database.Database) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_connections_employer ON connections(employer_id);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_transcripts_session ON transcripts(session_id, turn_number);
     CREATE INDEX IF NOT EXISTS idx_sessions_jd ON sessions(jd_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
@@ -147,6 +156,7 @@ function initSchema(sqlite: Database.Database) {
   ]);
 
   ensureTableColumns(sqlite, 'sessions', [
+    { name: 'employer_id', definition: "TEXT NOT NULL DEFAULT 'default'" },
     { name: 'candidate_email', definition: "TEXT DEFAULT ''" },
     { name: 'candidate_phone', definition: "TEXT DEFAULT ''" },
     { name: 'candidate_linkedin', definition: "TEXT DEFAULT ''" },
@@ -175,6 +185,10 @@ function initSchema(sqlite: Database.Database) {
     { name: 'orchestration_state', definition: 'TEXT' },
     { name: 'scheduled_slot', definition: 'TEXT' },
   ]);
+
+  sqlite.exec(`
+    CREATE INDEX IF NOT EXISTS idx_sessions_employer ON sessions(employer_id);
+  `);
 }
 
 function ensureTableColumns(
@@ -191,7 +205,14 @@ function ensureTableColumns(
 
   for (const column of requiredColumns) {
     if (!existingColumns.has(column.name)) {
-      sqlite.exec(`ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${column.definition}`);
+      try {
+        sqlite.exec(`ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${column.definition}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.toLowerCase().includes('duplicate column')) {
+          throw error;
+        }
+      }
     }
   }
 }
