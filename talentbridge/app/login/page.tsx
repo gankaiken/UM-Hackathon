@@ -20,6 +20,7 @@ function LoginForm() {
   const [password, setPassword] = useState('TalentBridgeDemo123!');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -56,7 +57,32 @@ function LoginForm() {
         <input value={email} onChange={e => setEmail(e.target.value)} type="email" autoComplete="email" style={inputStyle} />
 
         <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', margin: '16px 0 6px' }}>Password</label>
-        <input value={password} onChange={e => setPassword(e.target.value)} type="password" autoComplete="current-password" style={inputStyle} />
+        
+        <div style={{ position: "relative" }}>
+          <input
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            style={{ ...inputStyle, paddingRight: 40 }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: "absolute",
+              right: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "none",
+              border: "none",
+              cursor: "pointer"
+            }}
+          >
+            {showPassword ? "🙈" : "👁️"}
+          </button>
+
+        </div>
 
         {error ? <div style={{ marginTop: 16, color: '#DC2626', fontSize: 13 }}>{error}</div> : null}
 
