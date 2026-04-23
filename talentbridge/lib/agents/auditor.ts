@@ -4,6 +4,8 @@
 import { zhipuJson } from '../zhipu';
 import { mockAuditor } from './mock';
 import type { VerdictResult, TranscriptEntry, MapperResult, SentinelData, StyleAnalysisResult } from '../types';
+import { env } from '../env';
+import { executeAgent, logMockUsage } from './agentUtils';
 
 export async function runAuditor(
   transcript: TranscriptEntry[],
@@ -12,8 +14,8 @@ export async function runAuditor(
   styleAnalysis: StyleAnalysisResult | null,
   retryFeedback?: string[]
 ): Promise<VerdictResult> {
-  if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
-    console.log('[Auditor] Using mock (no API key)');
+  if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
+    logMockUsage('Auditor');
     return mockAuditor(mapper.core_dimensions, sentinelData, styleAnalysis);
   }
 
@@ -28,12 +30,13 @@ export async function runAuditor(
     ? `\n\nCRITICAL OVERRIDE: The Sentinel has detected a single paste of ${sentinelData.ai_paste_char_count} characters during the interview. This exceeds the 150-character threshold and is classified as AI-generated content with high certainty. You MUST set authenticity_status to "strong_flag" and human_review_required to true regardless of other signals.`
     : '';
 
-  return await zhipuJson<VerdictResult>({
-    messages: [
-      { role: 'system', content: systemPrompt + hardCodedWarning },
-      {
-        role: 'user',
-        content: `FULL TRANSCRIPT:
+  return await executeAgent(
+    () => zhipuJson<VerdictResult>({
+      messages: [
+        { role: 'system', content: systemPrompt + hardCodedWarning },
+        {
+          role: 'user',
+          content: `FULL TRANSCRIPT:
 ${transcriptText}
 
 SENTINEL DATA:
@@ -42,11 +45,13 @@ ${JSON.stringify(sentinelData, null, 2)}
 ${styleAnalysis ? `STYLE ANALYSIS:\n${JSON.stringify(styleAnalysis, null, 2)}` : 'STYLE ANALYSIS: Not triggered'}
 
 Output the Verdict JSON now.`,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 2048,
-  });
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 2048,
+    }),
+    { agentName: 'Auditor' }
+  );
 }
 
 function buildAuditorPrompt(mapper: MapperResult, retryFeedback?: string[]): string {

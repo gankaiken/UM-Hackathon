@@ -16,6 +16,7 @@ export const jdCache = sqliteTable('jd_cache', {
   // Role lifecycle: HR marks role filled → notifies all pending candidates
   roleFilled: integer('role_filled', { mode: 'boolean' }).notNull().default(false),
   roleFilledAt: integer('role_filled_at'),
+  timeslots: text('timeslots'),
   createdAt: integer('created_at').notNull(),
 });
 
@@ -68,6 +69,41 @@ export const sessions = sqliteTable('sessions', {
   sessionLifecycleStatus: text('session_lifecycle_status'),
   sessionExpiredAt: integer('session_expired_at'),
   partialProfileCreatedAt: integer('partial_profile_created_at'),
+  // Agent 8 Orchestration
+  orchestrationState: text('orchestration_state'), // JSON: { mode, status, steps, lastError, updatedAt }
+  // Phase 3: Finalized schedule selection
+  // JSON: { start: string, end: string }
+  scheduledSlot: text('scheduled_slot'),
+});
+
+// ─── Agent Logs ────────────────────────────────────────────────────────────────
+// Debug trace for all AI agent calls
+export const agentLogs = sqliteTable('agent_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: text('session_id'),
+  agentName: text('agent_name').notNull(),
+  status: text('status').notNull(),                // 'success' | 'error' | 'retry'
+  latency: integer('latency'),                    // ms
+  inputSummary: text('input_summary'),            // Truncated/Summarized input
+  outputSummary: text('output_summary'),          // Truncated/Summarized output
+  tokens: integer('tokens'),                      // If available
+  errorMessage: text('error_message'),
+  createdAt: integer('created_at').notNull(),
+});
+
+// ─── Employer Connections ──────────────────────────────────────────────────────
+// Secure server-side storage for OAuth tokens
+export const connections = sqliteTable('connections', {
+  id: text('id').primaryKey(),                    // provider_employerId
+  employerId: text('employer_id').notNull(),
+  provider: text('provider').notNull(),           // 'google' | 'zoom'
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  expiresAt: integer('expires_at'),               // Timestamp
+  scope: text('scope'),
+  metadata: text('metadata'),                     // JSON
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
 });
 
 // ─── Transcripts ───────────────────────────────────────────────────────────────
@@ -92,3 +128,7 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Transcript = typeof transcripts.$inferSelect;
 export type NewTranscript = typeof transcripts.$inferInsert;
+export type AgentLog = typeof agentLogs.$inferSelect;
+export type NewAgentLog = typeof agentLogs.$inferInsert;
+export type Connection = typeof connections.$inferSelect;
+export type NewConnection = typeof connections.$inferInsert;

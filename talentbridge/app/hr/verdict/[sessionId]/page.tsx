@@ -3,7 +3,7 @@
 // Shows: Triage, Dimension Scores, Agent Trace, Sentinel Log, Strengths/Gaps
 
 import { db } from '@/lib/db';
-import { sessions, transcripts, jdCache } from '@/lib/db/schema';
+import { sessions, transcripts, jdCache, agentLogs } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import VerdictCard from '@/components/hr/VerdictCard';
@@ -36,6 +36,13 @@ export default async function VerdictDetailPage({
     .from(transcripts)
     .where(eq(transcripts.sessionId, sessionId))
     .orderBy(asc(transcripts.turnNumber))
+    .all();
+
+  const dbAgentLogs = await db
+    .select()
+    .from(agentLogs)
+    .where(eq(agentLogs.sessionId, sessionId))
+    .orderBy(asc(agentLogs.createdAt))
     .all();
 
   if (session.sessionLifecycleStatus === 'expired') {
@@ -91,6 +98,7 @@ export default async function VerdictDetailPage({
       session={session}
       jd={jd ?? null}
       transcripts={dbTranscripts}
+      agentLogs={dbAgentLogs}
     />
   );
 }

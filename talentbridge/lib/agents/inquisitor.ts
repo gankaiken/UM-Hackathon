@@ -5,6 +5,8 @@
 import { zhipuStream } from '../zhipu';
 import { mockInquisitorText } from './mock';
 import type { StrategistResult } from '../types';
+import { env } from '../env';
+import { logMockUsage } from './agentUtils';
 
 export async function runInquisitorStream(
   strategistResult: StrategistResult,
@@ -17,8 +19,8 @@ export async function runInquisitorStream(
     );
   }
 
-  if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
-    console.log('[Inquisitor] Using mock stream (no API key)');
+  if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
+    logMockUsage('Inquisitor');
     return createMockStream(mockInquisitorText(strategistResult, candidateName));
   }
 

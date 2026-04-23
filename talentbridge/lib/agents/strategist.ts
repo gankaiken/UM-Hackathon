@@ -14,6 +14,8 @@ import type {
   NextAction,
 } from '../types';
 import { normalizeSentinelData } from '../sentinel';
+import { env } from '../env';
+import { executeAgent, logMockUsage } from './agentUtils';
 
 interface ContradictionSignal {
   context: string | null;
@@ -49,8 +51,8 @@ export async function runStrategist(
   const currentDimension = getCurrentDimension(transcript, mapper.core_dimensions, derivedCoverageMap);
   const normalizedTurnsSinceRealityCheck = Math.max(0, turnsSinceRealityCheck);
 
-  if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
-    console.log('[Strategist] Using mock (no API key)');
+  if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
+    logMockUsage('Strategist');
     const mockResult = mockStrategist(
       turnNumber,
       derivedCoverageMap,
@@ -84,12 +86,13 @@ export async function runStrategist(
     normalizedSentinelData.integrity_stage
   );
 
-  const result = await zhipuJson<StrategistResult>({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      {
-        role: 'user',
-        content: `CURRENT STATE:
+  const result = await executeAgent(
+    () => zhipuJson<StrategistResult>({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: `CURRENT STATE:
 Turn number: ${turnNumber}
 Turns since last reality check: ${normalizedTurnsSinceRealityCheck}
 Current dimension in focus: ${currentDimension ?? 'none'}
@@ -103,11 +106,13 @@ FULL CONVERSATION:
 ${conversationSummary}
 
 Output the next action as JSON only.`,
-      },
-    ],
-    temperature: 0.3,
-    max_tokens: 1024,
-  });
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 1024,
+    }),
+    { agentName: 'Strategist' }
+  );
 
   return finalizeStrategistResult(
     result,

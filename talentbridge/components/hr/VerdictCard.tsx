@@ -10,6 +10,7 @@ interface Props {
   session: Session;
   jd: JdCache | null;
   transcripts: Transcript[];
+  agentLogs?: any[]; // Using any for simplicity in this turn
 }
 
 const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: string; border: string }> = {
@@ -18,10 +19,13 @@ const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: stri
   reject: { label: 'Pass', color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' },
 };
 
-export default function VerdictCard({ session, jd, transcripts }: Props) {
+export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }: Props) {
   const verdict: VerdictResult = JSON.parse(session.verdict!);
   const sentinelData: SentinelData = normalizeSentinelData(JSON.parse(session.sentinelData));
-  const [activeTab, setActiveTab] = useState<'overview' | 'trace' | 'sentinel' | 'transcript'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trace' | 'sentinel' | 'transcript' | 'agent_logs'>('overview');
+  const [orchestrationState, setOrchestrationState] = useState<any>(
+    session.orchestrationState ? JSON.parse(session.orchestrationState) : null
+  );
   const [hrResponse, setHrResponse] = useState<HrResponse | null>(
     session.hrResponse === 'offer' || session.hrResponse === 'hold' || session.hrResponse === 'reject'
       ? session.hrResponse
@@ -54,7 +58,8 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'trace', label: 'Agent Trace' },
+    { id: 'trace', label: 'Strategy Trace' },
+    { id: 'agent_logs', label: 'Agent Logs' },
     { id: 'sentinel', label: 'Sentinel Log' },
     { id: 'transcript', label: 'Transcript' },
   ] as const;
@@ -89,12 +94,14 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Could not create schedule preview');
+        alert(data.error || 'Could not trigger orchestration');
         return;
       }
-      setInterviewScheduledAt(data.interviewScheduledAt);
-      setInterviewMeetingLink(data.interviewMeetingLink);
-      setInterviewScheduleNote(data.interviewScheduleNote);
+      setOrchestrationState(data.state);
+      if (data.state?.status === 'completed') {
+        // Fallback for UI backwards compatibility
+        setInterviewScheduledAt(Date.now() + 86400000);
+      }
     } catch {
       alert('Network error. Please try again.');
     } finally {
@@ -498,6 +505,119 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'overview' && hrResponse === 'offer' && (
+            <div style={{
+              marginTop: 32,
+              padding: '24px',
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: 20,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+                  Integration Coordinator (Agent 8)
+                </div>
+                {orchestrationState && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 4,
+                    background: orchestrationState.mode === 'live' ? '#10B98115' : '#64748B15',
+                    color: orchestrationState.mode === 'live' ? '#10B981' : '#64748B',
+                    textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
+                  }}>
+                    {orchestrationState.mode} MODE
+                  </span>
+                )}
+              </div>
+
+              {!orchestrationState ? (
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <p style={{ fontSize: 14, color: '#64748B', marginBottom: 16 }}>
+                    Proceed has been selected. Trigger Agent 8 to coordinate next steps.
+                  </p>
+                  <button
+                    onClick={handleSchedulePreview}
+                    disabled={schedulingPreview}
+                    style={{
+                      background: '#10B981', color: 'white', border: 'none',
+                      padding: '10px 24px', borderRadius: 10, fontWeight: 700,
+                      fontSize: 13, cursor: 'pointer', transition: 'all 0.2s',
+                      opacity: schedulingPreview ? 0.7 : 1
+                    }}
+                  >
+                    {schedulingPreview ? 'Running Coordinator...' : 'Run Agent 8 Orchestration'}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {orchestrationState.steps.map((step: any, idx: number) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: step.success ? '#10B981' : '#EF4444',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                        fontSize: 10
+                      }}>
+                        {step.success ? '✓' : '!'}
+                      </div>
+                      <span style={{ color: '#334155', fontWeight: 600, width: 80 }}>{step.step.toUpperCase()}</span>
+                      <span style={{ color: '#64748B' }}>{step.message}</span>
+                    </div>
+                  ))}
+                  {orchestrationState.status === 'running' && (
+                    <div style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', marginLeft: 32 }}>
+                      Agent is executing tools...
+                    </div>
+                  )}
+                  {orchestrationState.lastError && (
+                    <div style={{ padding: 12, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', fontSize: 13, marginTop: 8 }}>
+                      Error: {orchestrationState.lastError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'agent_logs' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {agentLogs.length === 0 ? (
+                <div style={{ padding: '60px', textAlign: 'center', background: '#FFFFFF', color: '#94A3B8', borderRadius: 20, border: '1px solid #E5E7EB' }}>
+                  No agent logs recorded.
+                </div>
+              ) : (
+                agentLogs.map((log, idx) => (
+                  <div key={idx} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 12, padding: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#0A0C12', fontFamily: 'var(--font-mono)' }}>{log.agentName}</span>
+                        <span style={{
+                          fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
+                          background: log.status === 'success' ? '#10B98115' : '#EF444415',
+                          color: log.status === 'success' ? '#10B981' : '#EF4444',
+                          textTransform: 'uppercase', fontFamily: 'var(--font-mono)'
+                        }}>
+                          {log.status}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 11, color: '#94A3B8', fontFamily: 'var(--font-mono)' }}>{log.latency}ms</span>
+                    </div>
+                    {log.outputSummary && (
+                      <div style={{
+                        fontSize: 12, color: '#64748B', fontFamily: 'var(--font-mono)',
+                        background: '#F8FAFC', padding: 8, borderRadius: 6, overflowX: 'auto'
+                      }}>
+                        {log.outputSummary}
+                      </div>
+                    )}
+                    {log.errorMessage && (
+                      <div style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>Error: {log.errorMessage}</div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           )}
 
