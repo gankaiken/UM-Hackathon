@@ -33,6 +33,10 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
   const [interviewMeetingLink, setInterviewMeetingLink] = useState(session.interviewMeetingLink ?? '');
   const [interviewScheduleNote, setInterviewScheduleNote] = useState(session.interviewScheduleNote ?? '');
   const [schedulingPreview, setSchedulingPreview] = useState(false);
+  const [disputeStatus, setDisputeStatus] = useState(session.disputeStatus);
+  const [disputeResolution, setDisputeResolution] = useState(session.disputeResolution);
+  const [disputeResolvedAt, setDisputeResolvedAt] = useState<Session['disputeResolvedAt']>(session.disputeResolvedAt);
+  const [resolvingDispute, setResolvingDispute] = useState(false);
   const activeHrResponse = hrResponse ?? null;
 
   const avgScore = verdict.overall_score ?? Math.round(
@@ -95,6 +99,30 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
       alert('Network error. Please try again.');
     } finally {
       setSchedulingPreview(false);
+    }
+  }
+
+  async function handleResolveDispute(resolution: 'upheld' | 'revised' | 'fresh_interview') {
+    if (!confirm(`Are you sure you want to resolve this dispute as "${resolution}"?`)) return;
+    setResolvingDispute(true);
+    try {
+      const res = await fetch(`/api/hr/session/${session.id}/resolve-dispute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolution }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Could not resolve dispute');
+        return;
+      }
+      setDisputeStatus(data.disputeStatus);
+      setDisputeResolution(data.disputeResolution);
+      setDisputeResolvedAt(data.disputeResolvedAt);
+    } catch {
+      alert('Network error. Please try again.');
+    } finally {
+      setResolvingDispute(false);
     }
   }
 
@@ -236,12 +264,61 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
                 Saved {new Date(hrRespondedAt).toLocaleString('en-MY')}
               </span>
             ) : null}
-            {session.disputeRequestedAt ? (
-              <span style={{ fontSize: 12, color: '#D97706', fontFamily: 'var(--font-body)' }}>
-                Candidate dispute submitted {new Date(session.disputeRequestedAt).toLocaleString('en-MY')}
-              </span>
-            ) : null}
           </div>
+          
+          {(disputeStatus === 'requested' || disputeStatus === 'resolved') && (
+            <div style={{
+              marginTop: 16,
+              padding: '16px 20px',
+              background: disputeStatus === 'resolved' ? '#F8FAFC' : '#FEF3C7',
+              border: `1px solid ${disputeStatus === 'resolved' ? '#E2E8F0' : '#FDE68A'}`,
+              borderRadius: 12,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: disputeStatus === 'resolved' ? '#475569' : '#D97706', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                  Candidate Dispute
+                </span>
+                {disputeStatus === 'resolved' && (
+                  <span style={{ fontSize: 10, fontWeight: 700, background: '#E2E8F0', color: '#475569', padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
+                    Resolved: {disputeResolution?.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
+              
+              <div style={{ fontSize: 14, color: '#374151', fontFamily: 'var(--font-body)', marginBottom: 16, padding: '12px', background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 4 }}>
+                  Submitted: {new Date(session.disputeRequestedAt!).toLocaleString('en-MY')}
+                </div>
+                <strong>Reason:</strong> {session.disputeReason}
+              </div>
+
+              {disputeStatus === 'requested' && (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => handleResolveDispute('upheld')}
+                    disabled={resolvingDispute}
+                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', cursor: resolvingDispute ? 'wait' : 'pointer' }}
+                  >
+                    Uphold Original
+                  </button>
+                  <button
+                    onClick={() => handleResolveDispute('revised')}
+                    disabled={resolvingDispute}
+                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', cursor: resolvingDispute ? 'wait' : 'pointer' }}
+                  >
+                    Revise Verdict
+                  </button>
+                  <button
+                    onClick={() => handleResolveDispute('fresh_interview')}
+                    disabled={resolvingDispute}
+                    style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', cursor: resolvingDispute ? 'wait' : 'pointer' }}
+                  >
+                    Grant Fresh Interview
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {interviewScheduledAt ? (
             <div style={{
               marginTop: 16,

@@ -15,6 +15,8 @@ export default function ResultPage() {
   const [disputeSuccess, setDisputeSuccess] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeRequestedAt, setDisputeRequestedAt] = useState<number | null>(null);
+  const [disputeStatus, setDisputeStatus] = useState<string | null>(null);
+  const [disputeResolution, setDisputeResolution] = useState<string | null>(null);
   const [foundJob, setFoundJob] = useState(false);
   const [foundJobLoading, setFoundJobLoading] = useState(false);
   const [interviewScheduledAt, setInterviewScheduledAt] = useState<number | null>(null);
@@ -67,6 +69,8 @@ export default function ResultPage() {
         setCandidateName(s.candidateName);
         setFoundJob(Boolean(s.foundJob));
         setDisputeRequestedAt(s.disputeRequestedAt ?? null);
+        setDisputeStatus(s.disputeStatus ?? null);
+        setDisputeResolution(s.disputeResolution ?? null);
         setInterviewScheduledAt(s.interviewScheduledAt ?? null);
         setInterviewMeetingLink(s.interviewMeetingLink ?? '');
         setInterviewScheduleNote(s.interviewScheduleNote ?? '');
@@ -436,7 +440,7 @@ export default function ResultPage() {
           )}
 
           {/* Dispute Flow */}
-          {!disputeSuccess && !disputeRequestedAt ? (
+          {!disputeSuccess && (!disputeStatus || disputeStatus === 'none') ? (
             <div style={{ background: '#FFFFFF', border: '1.5px solid #E5E7EB', borderRadius: 24, padding: '32px', marginTop: 12 }}>
               <h3 style={{ 
                 fontSize: 14, fontWeight: 800, color: '#0A0C12', 
@@ -473,6 +477,7 @@ export default function ResultPage() {
                             return;
                           }
                           setDisputeRequestedAt(data.disputeRequestedAt);
+                          setDisputeStatus(data.disputeStatus);
                           setDisputeSuccess(true);
                           setDisputing(false);
                         } catch {
@@ -507,18 +512,34 @@ export default function ResultPage() {
                 </button>
               )}
             </div>
-          ) : (
+          ) : (disputeStatus === 'requested' || disputeSuccess) ? (
             <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 24, padding: '24px', marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 20 }}>✓</span>
               <div>
-                <div style={{ fontWeight: 700, color: '#065F46', fontSize: 14 }}>Dispute Submitted</div>
+                <div style={{ fontWeight: 700, color: '#065F46', fontSize: 14 }}>Under Review</div>
                 <div style={{ color: '#047857', fontSize: 13 }}>
                   Our human review team will review this session within 72 hours.
                   {disputeRequestedAt ? ` Submitted ${new Date(disputeRequestedAt).toLocaleString('en-MY')}.` : ''}
                 </div>
               </div>
             </div>
-          )}
+          ) : disputeStatus === 'resolved' ? (
+            <div style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: 24, padding: '24px', marginTop: 12, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <span style={{ fontSize: 20, marginTop: -2 }}>
+                {disputeResolution === 'upheld' ? '📋' : disputeResolution === 'revised' ? '✨' : '📅'}
+              </span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#334155', fontSize: 14, marginBottom: 4 }}>Review Completed</div>
+                <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.6 }}>
+                  {disputeResolution === 'upheld' 
+                    ? 'Review completed. The original verdict stands.'
+                    : disputeResolution === 'revised'
+                    ? 'Review completed. Your verdict has been updated based on the human review.'
+                    : 'Review completed. You have been granted a fresh interview. Our team will arrange the next step shortly.'}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Footer Note + Found a Job */}

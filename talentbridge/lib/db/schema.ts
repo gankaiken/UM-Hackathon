@@ -59,9 +59,15 @@ export const sessions = sqliteTable('sessions', {
   disputeRequestedAt: integer('dispute_requested_at'),
   disputeReason: text('dispute_reason'),
   disputeStatus: text('dispute_status'),
+  disputeResolvedAt: integer('dispute_resolved_at'),
+  disputeResolution: text('dispute_resolution'), // 'upheld' | 'revised' | 'fresh_interview'
+  disputeResolutionNotes: text('dispute_resolution_notes'),
   moderationStatus: text('moderation_status'),
   moderationErrors: text('moderation_errors'),
   moderationEscalatedAt: integer('moderation_escalated_at'),
+  sessionLifecycleStatus: text('session_lifecycle_status'),
+  sessionExpiredAt: integer('session_expired_at'),
+  partialProfileCreatedAt: integer('partial_profile_created_at'),
 });
 
 // ─── Transcripts ───────────────────────────────────────────────────────────────

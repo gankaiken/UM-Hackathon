@@ -1,6 +1,6 @@
 // lib/agents/langStyleAnalyzer.ts
 // Agent 6: Language Style Analyzer — conditional, only when Sentinel Stage 2 fires.
-// Scores 5 signals to detect mid-session style shift consistent with AI proxy use.
+// Scores 7 signals to detect mid-session style shift / discontinuity consistent with AI proxy use.
 
 import { zhipuJson } from '../zhipu';
 import { mockStyleAnalyzer } from './mock';
@@ -30,7 +30,7 @@ ${earlyHalf}
 LATE HALF (remaining ${candidateTurns.length - mid} responses):
 ${lateHalf}
 
-Analyze for style shifts and output the JSON verdict.`,
+Analyze for style discontinuity and output the JSON verdict.`,
       },
     ],
     temperature: 0.2,
@@ -41,33 +41,44 @@ Analyze for style shifts and output the JSON verdict.`,
 const STYLE_ANALYZER_PROMPT = `You are the Language Style Analyzer for TalentBridge AI.
 
 Triggered ONLY when Sentinel Stage 2 fires (suspicious tab-switching + paste activity).
-Your job: compare early-half vs late-half candidate responses for style shifts.
+Your job: compare early-half vs late-half candidate responses to detect within-session style discontinuity and authenticity anomalies.
+Do NOT claim absolute certainty of AI authorship; focus purely on structural language shifts.
 
-5 SIGNALS to check:
+7 SIGNALS to check:
 
-1. RESPONSE LENGTH SHIFT: Late-half answers ≥ 2.5× longer than early-half with no question complexity increase → penalty -20
-2. FORMALITY SHIFT: Structured discourse markers ("Firstly,", "In conclusion,", "Furthermore,") appear in late half, absent in early → penalty -20
-3. LANGUAGE REGISTER SHIFT: Candidate using Manglish suddenly writes ≥80% formal English in late half → penalty -20
-4. PERSONAL DETAIL DENSITY SHIFT: Early half has specific names/numbers/dates; late half is generic → penalty -20
-5. COLLOQUIAL MARKER RETENTION: "lah", "lor", "kan", "mah" present early, COMPLETELY absent late → penalty -20 (Malaysia-specific)
+Tier 1 Signals (Significant Anomalies) → Penalty: -20 each
+1. SCOPE DRIFT / OVER-EXPLANATION: Late-half answers provide excessively broad, textbook-style generic context unprompted.
+2. RESPONSE LENGTH SHIFT: Late-half answers are vastly longer than early-half despite no increase in question complexity.
+3. LANGUAGE REGISTER JUMP: Candidate suddenly switches from casual/colloquial phrasing to highly formal, academic, or corporate syntax.
+4. PERSONAL DETAIL DENSITY DROP: Early half has specific names/numbers/dates/anecdotes; late half becomes entirely generic or theoretical.
 
-Score: style_consistency_score = 100 − (sum of penalties)
+Tier 2 Signals (Structural Anomalies) → Penalty: -10 each
+5. DISCOURSE MARKER EMERGENCE: Structured markers ("Firstly,", "In conclusion,", "Furthermore,") suddenly appear in the late half.
+6. SENTENCE UNIFORMITY / REPETITION: Late-half sentence structures become highly uniform, robotic, or use repetitive transition patterns.
+7. COLLOQUIAL MARKER RETENTION: Cultural markers (e.g., "lah", "lor", "kan") present early are completely abandoned in the late half.
+
+Score calculation:
+style_consistency_score = Math.max(0, 100 - (sum of penalties))
+
+Thresholds:
 - 80-100: Consistent — clean
 - 60-79: Minor variation — normal
 - 40-59: Moderate shift — flag
 - <40: Significant shift → PASS_TO_AUDITOR_STRONG_FLAG
 
-Output strict JSON:
+Output strict JSON exactly matching this structure:
 {
   "style_consistency_score": number,
   "anomaly_detected": boolean,
   "primary_anomaly_type": "description of main anomaly" or null,
   "signal_breakdown": {
-    "response_length_shift": 0 or -20,
-    "formality_shift": 0 or -20,
-    "language_register_shift": 0 or -20,
-    "personal_detail_density_shift": 0 or -20,
-    "colloquial_marker_retention": 0 or -20
+    "scope_drift_penalty": 0 or -20,
+    "response_length_shift_penalty": 0 or -20,
+    "language_register_jump_penalty": 0 or -20,
+    "personal_detail_density_drop_penalty": 0 or -20,
+    "discourse_marker_emergence_penalty": 0 or -10,
+    "sentence_uniformity_penalty": 0 or -10,
+    "colloquial_marker_retention_penalty": 0 or -10
   },
   "recommendation": "CLEAN|MINOR_VARIATION|FLAG_TO_AUDITOR|PASS_TO_AUDITOR_STRONG_FLAG"
 }`;

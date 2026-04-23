@@ -154,11 +154,13 @@ export function mockStyleAnalyzer(_transcriptText: string): StyleAnalysisResult 
     anomaly_detected: false,
     primary_anomaly_type: null,
     signal_breakdown: {
-      response_length_shift: 0,
-      formality_shift: 0,
-      language_register_shift: -8,
-      personal_detail_density_shift: 0,
-      colloquial_marker_retention: -20,
+      scope_drift_penalty: 0,
+      response_length_shift_penalty: -20,
+      language_register_jump_penalty: 0,
+      personal_detail_density_drop_penalty: -20,
+      discourse_marker_emergence_penalty: 0,
+      sentence_uniformity_penalty: 0,
+      colloquial_marker_retention_penalty: -10,
     },
     recommendation: 'MINOR_VARIATION',
   };
