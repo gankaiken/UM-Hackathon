@@ -4,10 +4,10 @@ import { sessions, jdCache } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import Link from 'next/link';
 import { getCurrentTimestamp } from '@/lib/utils/runtime';
+import { calculateAggregateEmployerReputation } from '@/lib/hrReputation';
 
 import ClientPipeline from './ClientPipeline';
 export const dynamic = 'force-dynamic';
-const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
 
 export default async function HRDashboard() {
   const allSessions = await db
@@ -21,22 +21,32 @@ export default async function HRDashboard() {
   const active    = allSessions.filter(s => s.session.status === 'active');
   const now = getCurrentTimestamp();
 
-  const total = completed.length;
-  const respondedWithinWindow = completed.filter(item => {
-    if (!item.session.hrRespondedAt || !item.session.completedAt) return false;
-    return item.session.hrRespondedAt - item.session.completedAt <= FORTY_EIGHT_HOURS;
-  });
-  const ghostingEvents = completed.filter(item => {
-    if (!item.session.completedAt || item.session.hrRespondedAt) return false;
-    return now - item.session.completedAt > FORTY_EIGHT_HOURS;
-  }).length;
-
-  const baseScore = total >= 5 ? 70 : 80;
-  const responseBonus = total > 0 ? (respondedWithinWindow.length / total) * 30 : 0;
-  const reputationScore = Math.min(100, Math.round(baseScore + responseBonus));
-
-  const responseRate = total > 0 ? Math.round((respondedWithinWindow.length / total) * 100) : 100;
+  const reputation = calculateAggregateEmployerReputation(
+    allSessions.map(item => ({
+      employerId: item.company,
+      verdict: item.session.verdict,
+      completedAt: item.session.completedAt,
+      hrRespondedAt: item.session.hrRespondedAt,
+    })),
+    now
+  );
+  const responseRate = reputation.responseRate48h === null ? null : Math.round(reputation.responseRate48h * 100);
   const thisMonthCount = completed.filter(s => now - s.session.createdAt < 30 * 24 * 3600 * 1000).length;
+  const reputationLabel = {
+    cold_start: 'Grace Period',
+    excellent: 'Excellent',
+    healthy: 'Healthy',
+    watchlist: 'Watchlist',
+    low_response: 'Low Response',
+  }[reputation.status];
+  const reputationColor = reputation.status === 'low_response'
+    ? '#EF4444'
+    : reputation.status === 'watchlist'
+      ? '#F59E0B'
+      : reputation.status === 'cold_start'
+        ? '#60A5FA'
+        : '#10B981';
+  const ghostingEvents = reputation.overdueGhostingEvents;
 
   return (
     <div style={{
@@ -80,7 +90,7 @@ export default async function HRDashboard() {
               Dashboard
             </h1>
             <p style={{ fontSize: 14, color: '#4B5568', fontFamily: 'var(--font-body)' }}>
-              {completed.length} verdicts issued · {active.length} sessions active · {ghostingEvents} flags pending review
+              {completed.length} verdicts issued · {active.length} sessions active · {ghostingEvents} overdue HR responses
             </p>
           </div>
           <Link
@@ -114,28 +124,28 @@ export default async function HRDashboard() {
               tooltip: 'Number of candidates fully processed by the Auditor'
             },
             {
-              value: `${responseRate}%`,
+              value: responseRate === null ? 'Grace' : `${responseRate}%`,
               label: 'Response Rate (48hr)',
-              sub: 'Above threshold: 80%',
-              subColor: '#10B981',
+              sub: reputation.active ? 'Based on real HR responses' : `${reputation.totalCompletedVerdicts}/5 verdicts before scoring`,
+              subColor: reputation.active ? reputationColor : '#60A5FA',
               icon: '⚡',
-              tooltip: 'Percentage of candidates receiving AI verdicts within 48 hours'
+              tooltip: 'Percentage of released verdict cards that received an HR response within 48 hours'
             },
             {
               value: ghostingEvents.toString(),
-              label: 'Integrity Flags',
-              sub: 'Requires manual audit',
-              subColor: '#F59E0B',
+              label: 'Overdue Responses',
+              sub: reputation.active ? 'No HR response after 48h' : 'Grace period active',
+              subColor: reputation.overdueGhostingEvents > 0 ? '#F59E0B' : '#10B981',
               icon: '🛡',
-              tooltip: 'Sentinel Agent caught suspicious behavior (tab switching/pasting) requiring manual review'
+              tooltip: 'Completed verdict cards without HR response after 48 hours'
             },
             {
-              value: `${Math.max(1, Math.round(completed.length * 4.5))}h`,
-              label: 'AI Time Saved',
-              sub: 'vs manual screening',
-              subColor: '#2563EB',
+              value: reputation.score === null ? '--' : reputation.score.toString(),
+              label: 'HR Reputation',
+              sub: reputationLabel,
+              subColor: reputationColor,
               icon: '⏱',
-              tooltip: 'Estimated hours saved by Mapper and Inquisitor agents conducting the screening'
+              tooltip: 'Private operational metric derived from completed verdict cards and HR response timing'
             },
           ].map((kpi, i) => (
             <div

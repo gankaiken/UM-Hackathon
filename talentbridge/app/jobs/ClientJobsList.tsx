@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Building, MapPin, Briefcase, Search } from 'lucide-react';
 import type { JdCache } from '@/lib/db/schema';
 
-type JobListItem = Pick<JdCache, 'id' | 'roleTitle' | 'employerId' | 'mapperOutput' | 'rawJd'>;
+type JobListItem = Pick<JdCache, 'id' | 'roleTitle' | 'employerId' | 'mapperOutput' | 'rawJd'> & {
+  employerReputationWarning?: boolean;
+};
 
 export default function ClientJobsList({ jobs }: { jobs: JobListItem[] }) {
   const [search, setSearch] = useState('');
@@ -145,6 +147,23 @@ export default function ClientJobsList({ jobs }: { jobs: JobListItem[] }) {
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', fontFamily: 'var(--font-body)' }}>
                         {job.employerId === 'default' ? 'Nexus Digital Sdn Bhd' : job.employerId}
                       </span>
+                      {job.employerReputationWarning && (
+                        <span
+                          title="This employer has a low recent response rate on completed verdict cards."
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: '#B45309',
+                            background: '#FFFBEB',
+                            border: '1px solid #FDE68A',
+                            borderRadius: 999,
+                            padding: '3px 8px',
+                            fontFamily: 'var(--font-body)',
+                          }}
+                        >
+                          Low Response Rate
+                        </span>
+                      )}
                     </div>
 
                     <h3 style={{

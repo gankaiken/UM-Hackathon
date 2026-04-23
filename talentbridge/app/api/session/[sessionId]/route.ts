@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { sessions, transcripts, jdCache } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import type { SessionState, TranscriptEntry } from '@/lib/types';
+import { normalizeSentinelData } from '@/lib/sentinel';
 
 export async function GET(
   _req: NextRequest,
@@ -57,7 +58,7 @@ export async function GET(
       moderationEscalatedAt: session.moderationEscalatedAt,
       turnCount: session.turnCount,
       coverageMap: JSON.parse(session.coverageMap),
-      sentinelData: JSON.parse(session.sentinelData),
+      sentinelData: normalizeSentinelData(JSON.parse(session.sentinelData)),
       transcript,
       mapperResult: JSON.parse(jd.mapperOutput),
     };

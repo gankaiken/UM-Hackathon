@@ -13,6 +13,7 @@ import type {
   DimensionState,
   NextAction,
 } from '../types';
+import { normalizeSentinelData } from '../sentinel';
 
 interface ContradictionSignal {
   context: string | null;
@@ -42,6 +43,7 @@ export async function runStrategist(
   turnNumber: number,
   turnsSinceRealityCheck: number
 ): Promise<StrategistResult> {
+  const normalizedSentinelData = normalizeSentinelData(sentinelData);
   const derivedCoverageMap = deriveCoverageMap(coverageMap, mapper.core_dimensions, transcript);
   const contradiction = detectContradiction(transcript);
   const currentDimension = getCurrentDimension(transcript, mapper.core_dimensions, derivedCoverageMap);
@@ -53,8 +55,8 @@ export async function runStrategist(
       turnNumber,
       derivedCoverageMap,
       mapper.core_dimensions,
-      sentinelData.focus_loss_events,
-      sentinelData.paste_events,
+      normalizedSentinelData.focus_loss_events,
+      normalizedSentinelData.paste_events,
       normalizedTurnsSinceRealityCheck
     );
 
@@ -64,7 +66,7 @@ export async function runStrategist(
       derivedCoverageMap,
       contradiction,
       currentDimension,
-      sentinelData,
+      normalizedSentinelData,
       transcript,
       normalizedTurnsSinceRealityCheck,
       turnNumber
@@ -75,7 +77,12 @@ export async function runStrategist(
     .map(entry => `[Turn ${entry.turnNumber}] ${entry.role === 'inquisitor' ? 'AI' : 'Candidate'}: ${entry.content}`)
     .join('\n');
 
-  const systemPrompt = buildStrategistPrompt(mapper, currentDimension, contradiction);
+  const systemPrompt = buildStrategistPrompt(
+    mapper,
+    currentDimension,
+    contradiction,
+    normalizedSentinelData.integrity_stage
+  );
 
   const result = await zhipuJson<StrategistResult>({
     messages: [
@@ -86,8 +93,10 @@ export async function runStrategist(
 Turn number: ${turnNumber}
 Turns since last reality check: ${normalizedTurnsSinceRealityCheck}
 Current dimension in focus: ${currentDimension ?? 'none'}
+Explicit Sentinel integrity state: ${normalizedSentinelData.integrity_stage}
 Coverage map: ${JSON.stringify(derivedCoverageMap)}
-Sentinel data: ${JSON.stringify(sentinelData)}
+Sentinel integrity stage: ${normalizedSentinelData.integrity_stage}
+Sentinel data: ${JSON.stringify(normalizedSentinelData)}
 Contradiction signal: ${contradiction.context ?? 'none'}
 
 FULL CONVERSATION:
@@ -106,7 +115,7 @@ Output the next action as JSON only.`,
     derivedCoverageMap,
     contradiction,
     currentDimension,
-    sentinelData,
+    normalizedSentinelData,
     transcript,
     normalizedTurnsSinceRealityCheck,
     turnNumber
@@ -141,11 +150,11 @@ function finalizeStrategistResult(
   let probeAngle = result.probe_angle;
 
   const shouldClose = dimensions.every(dim => coverageMap[dim] === 'SUFFICIENT') || turnNumber >= 20;
-  const stageOneSentinel =
-    (sentinelData.current_question_tab_switches ?? 0) > 2 ||
-    (sentinelData.current_question_focus_loss_seconds ?? 0) > 30;
-  const stageTwoSentinel = sentinelData.focus_loss_events > 3 && sentinelData.paste_events > 1;
-  const shouldRealityCheck = stageOneSentinel || stageTwoSentinel;
+  const integrityStage = sentinelData.integrity_stage ?? 'clean';
+  const shouldRealityCheck =
+    integrityStage === 'stage_2_alert'
+      ? turnsSinceRealityCheck >= 1
+      : integrityStage === 'stage_1_alert' && turnsSinceRealityCheck >= 3;
   const stallSignal = detectDimensionStall(transcript, currentDimension);
   const shouldResolveContradiction = shouldEscalateContradiction(contradiction, transcript, turnNumber);
 
@@ -153,11 +162,14 @@ function finalizeStrategistResult(
     nextAction = 'close_session';
     targetDimension = fallbackTarget;
     forcedCloseLog = turnNumber >= 20 ? 'Turn limit reached' : forcedCloseLog;
-  } else if (shouldRealityCheck && turnsSinceRealityCheck >= 3) {
+  } else if (shouldRealityCheck) {
     nextAction = 'reality_check';
     sentinelOverride = true;
     targetDimension = fallbackTarget;
-    probeAngle = `Ask for one concrete detail from the candidate's most recent example in ${targetDimension}, such as an exact number, tool, date, or step they personally handled.`;
+    probeAngle =
+      integrityStage === 'stage_2_alert'
+        ? `Run a calm integrity reality check on ${targetDimension}; ask for a concrete, personally handled detail without accusing the candidate.`
+        : `Ask for one concrete detail from the candidate's most recent example in ${targetDimension}, such as an exact number, tool, date, or step they personally handled.`;
   } else if (shouldResolveContradiction) {
     nextAction = 'resolve_contradiction';
     targetDimension = fallbackTarget;
@@ -199,10 +211,12 @@ function finalizeStrategistResult(
     result.reasoning?.trim(),
     `Coverage refreshed from transcript.`,
     `Turns since last reality check: ${turnsSinceRealityCheck}.`,
-    stageOneSentinel
-      ? `Stage 1 Sentinel threshold hit for this question (${sentinelData.current_question_tab_switches ?? 0} tab switches, ${(sentinelData.current_question_focus_loss_seconds ?? 0).toFixed(1)}s focus loss).`
+    integrityStage === 'stage_1_alert'
+      ? `Explicit Sentinel state is stage_1_alert (${sentinelData.current_question_tab_switches ?? 0} current-question tab switches, ${(sentinelData.current_question_focus_loss_seconds ?? 0).toFixed(1)}s current-question focus loss).`
       : null,
-    stageTwoSentinel ? `Stage 2 Sentinel threshold is active.` : null,
+    integrityStage === 'stage_2_alert'
+      ? `Explicit Sentinel state is stage_2_alert and cannot downgrade within this session.`
+      : null,
     stallSignal.stalled
       ? `Dimension stall detected on ${stallSignal.stalledDimension}: ${stallSignal.stallCount} probe_deeper turns with zero new Action Nodes.`
       : null,
@@ -565,7 +579,8 @@ function maxCoverageState(current: DimensionState, incoming: DimensionState): Di
 function buildStrategistPrompt(
   mapper: MapperResult,
   currentDimension: string | null,
-  contradiction: ContradictionSignal
+  contradiction: ContradictionSignal,
+  integrityStage: SentinelData['integrity_stage']
 ) {
   return `You are the Strategist agent for TalentBridge AI — the hidden intelligence directing the interview.
 
@@ -587,6 +602,8 @@ Priority decision logic (stop at first match):
 3. Current dimension TOUCHED or DEVELOPING → probe_deeper
 4. Current dimension SUFFICIENT or stalled after 3 probe_deeper turns with zero new Action Nodes → change_dimension
 5. All SUFFICIENT or turn >= 20 → close_session
+
+Explicit Sentinel override for current state (${integrityStage ?? 'clean'}): stage_2_alert takes priority over contradiction and normal probing; stage_1_alert takes priority over normal flow once turns_since_last_reality_check >= 3.
 
 Action Node indicators (score ONLY these):
 - Quantified result ("sales up 30%", "12,000 followers")

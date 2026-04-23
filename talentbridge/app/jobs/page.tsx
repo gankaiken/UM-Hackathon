@@ -1,9 +1,11 @@
 // app/jobs/page.tsx — Premium Candidate Portal v3.0
 import { db } from '@/lib/db';
-import { jdCache } from '@/lib/db/schema';
-import { desc } from 'drizzle-orm';
+import { jdCache, sessions } from '@/lib/db/schema';
+import { desc, eq } from 'drizzle-orm';
 import Link from 'next/link';
 import ClientJobsList from './ClientJobsList';
+import { buildEmployerReputationMap, normalizeEmployerId } from '@/lib/hrReputation';
+import { getCurrentTimestamp } from '@/lib/utils/runtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +15,22 @@ export default async function JobsPage() {
     .from(jdCache)
     .orderBy(desc(jdCache.createdAt))
     .all();
+  const reputationRows = await db
+    .select({
+      employerId: jdCache.employerId,
+      verdict: sessions.verdict,
+      completedAt: sessions.completedAt,
+      hrRespondedAt: sessions.hrRespondedAt,
+    })
+    .from(sessions)
+    .leftJoin(jdCache, eq(sessions.jdId, jdCache.id))
+    .all();
+  const reputationByEmployer = buildEmployerReputationMap(reputationRows, getCurrentTimestamp());
+  const jobsWithReputation = jobs.map(job => ({
+    ...job,
+    employerReputationWarning:
+      reputationByEmployer.get(normalizeEmployerId(job.employerId))?.candidateWarning ?? false,
+  }));
 
   return (
     <div style={{ minHeight: '100vh', background: '#FFFFFF' }}>
@@ -60,8 +78,8 @@ export default async function JobsPage() {
             fontSize: 18, lineHeight: 1.65, color: '#6B7280',
             maxWidth: 560, fontFamily: 'var(--font-body)',
           }}>
-            Apply with a 4-minute AI conversation. No resume bias, no ghosting — 
-            every candidate receives a personalised outcome and feedback.
+            Apply with a 4-minute AI conversation. No resume bias, response tracking built in — 
+            every candidate can view their personalised outcome when it is ready.
           </p>
         </div>
       </section>
@@ -69,7 +87,7 @@ export default async function JobsPage() {
       {/* ── CONTENT ─────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 40px 100px' }}>
 
-        <ClientJobsList jobs={jobs} />
+        <ClientJobsList jobs={jobsWithReputation} />
 
       </div>
     </div>

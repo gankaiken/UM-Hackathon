@@ -3,6 +3,7 @@ import { jdCache, sessions, transcripts } from '@/lib/db/schema';
 import { v4 as uuid } from 'uuid';
 import { NextResponse } from 'next/server';
 import type { Confidence, VerdictResult } from '@/lib/types';
+import { DEFAULT_SENTINEL_DATA, normalizeSentinelData } from '@/lib/sentinel';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,9 +70,9 @@ export async function GET() {
         };
       });
 
-      const sentinelData = c.triage === 'RED' 
-        ? { focus_loss_events: 5, total_away_duration_seconds: 40, paste_events: 3, tab_switches: 4, answer_timings_ms: [18000, 22000, 110000], last_answer_elapsed_ms: 110000, timing_anomaly_count: 1, last_answer_timing_anomaly: true, ai_paste_detected: false, ai_paste_char_count: 0 }
-        : { focus_loss_events: 0, total_away_duration_seconds: 0, paste_events: 0, tab_switches: 0, answer_timings_ms: [], last_answer_elapsed_ms: 0, timing_anomaly_count: 0, last_answer_timing_anomaly: false, ai_paste_detected: false, ai_paste_char_count: 0 };
+      const sentinelData = c.triage === 'RED'
+        ? normalizeSentinelData({ ...DEFAULT_SENTINEL_DATA, focus_loss_events: 5, total_away_duration_seconds: 40, paste_events: 3, tab_switches: 4, answer_timings_ms: [18000, 22000, 110000], last_answer_elapsed_ms: 110000, timing_anomaly_count: 1, last_answer_timing_anomaly: true })
+        : DEFAULT_SENTINEL_DATA;
 
       await db.insert(sessions).values({
         id: sId,
@@ -105,7 +106,7 @@ export async function GET() {
           status: 'active',
           turnCount: Math.floor(Math.random() * 5) + 1,
           coverageMap: '{}',
-          sentinelData: '{"focus_loss_events":0,"total_away_duration_seconds":0,"paste_events":0,"tab_switches":0,"answer_timings_ms":[],"last_answer_elapsed_ms":0,"timing_anomaly_count":0,"last_answer_timing_anomaly":false,"ai_paste_detected":false,"ai_paste_char_count":0}',
+          sentinelData: JSON.stringify(DEFAULT_SENTINEL_DATA),
           createdAt: Date.now() - Math.floor(Math.random() * 1000 * 60 * 60), // recently
         });
       }
