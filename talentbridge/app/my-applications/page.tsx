@@ -20,7 +20,7 @@ export default function MyApplicationsPage() {
       role: 'Frontend Developer',
       company: 'TechFlow Solutions',
       appliedAt: '1 week ago',
-      status: 'Auto-Scheduled by Agent',
+      status: 'Demo-Scheduled Preview',
       statusColor: '#10B981',
       statusBg: '#ECFDF5',
       resultLink: null,
@@ -141,15 +141,15 @@ export default function MyApplicationsPage() {
               </div>
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
-              Seamless Scheduling
+              Scheduling Preview
             </h3>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#94A3B8', lineHeight: 1.6, marginBottom: 20 }}>
-              Our <strong>Integration Coordinator Agent</strong> securely connects with your email and calendar to automatically schedule interviews when an employer wishes to proceed. No more endless email threads.
+              This panel previews how the <strong>Integration Coordinator Agent</strong> could streamline employer follow-up and interview scheduling in a fuller production build.
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>Gmail API</div>
-              <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>Calendar API</div>
-              <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>Zoom API</div>
+              <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>Workflow Demo</div>
+              <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>Calendar Preview</div>
+              <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11, fontFamily: 'var(--font-mono)' }}>Meeting Link Preview</div>
             </div>
           </div>
         </div>

@@ -49,12 +49,20 @@ export interface SentinelData {
   total_away_duration_seconds: number;
   paste_events: number;
   tab_switches: number;
+  current_question_focus_loss_seconds?: number;
+  current_question_tab_switches?: number;
+  integrity_stage?: SentinelStage;
+  answer_timings_ms?: number[];
+  last_answer_elapsed_ms?: number;
+  timing_anomaly_count?: number;
+  last_answer_timing_anomaly?: boolean;
   // Hard-coded AI detection: large paste (>150 chars) auto-flagged
   ai_paste_detected?: boolean;
   ai_paste_char_count?: number;
 }
 
 export type SentinelStage = 'clean' | 'stage_1_alert' | 'stage_2_alert';
+export type HrResponse = 'offer' | 'hold' | 'reject';
 
 // ─── Language Style Analyzer ─────────────────────────────────────────────────
 export interface StyleAnalysisResult {
@@ -135,6 +143,17 @@ export interface SessionState {
   jdId: string;
   candidateName: string;
   status: string;
+  foundJob?: boolean;
+  foundJobAt?: number | null;
+  interviewScheduledAt?: number | null;
+  interviewMeetingLink?: string | null;
+  interviewScheduleNote?: string | null;
+  disputeRequestedAt?: number | null;
+  disputeReason?: string | null;
+  disputeStatus?: string | null;
+  moderationStatus?: string | null;
+  moderationErrors?: string[] | null;
+  moderationEscalatedAt?: number | null;
   turnCount: number;
   coverageMap: CoverageMap;
   sentinelData: SentinelData;

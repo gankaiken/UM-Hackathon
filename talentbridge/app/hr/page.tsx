@@ -3,10 +3,11 @@ import { db } from '@/lib/db';
 import { sessions, jdCache } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import Link from 'next/link';
-import type { VerdictResult } from '@/lib/types';
+import { getCurrentTimestamp } from '@/lib/utils/runtime';
 
 import ClientPipeline from './ClientPipeline';
 export const dynamic = 'force-dynamic';
+const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
 
 export default async function HRDashboard() {
   const allSessions = await db
@@ -18,20 +19,24 @@ export default async function HRDashboard() {
 
   const completed = allSessions.filter(s => s.session.verdict);
   const active    = allSessions.filter(s => s.session.status === 'active');
+  const now = getCurrentTimestamp();
 
-  const ghostingEvents = 3; // In a full app, this would be computed from Sentinel metadata
-  
-  // Compute Reputation Score dynamically (based on completion ratio as a proxy for responsiveness)
-  const total = allSessions.length;
-  const baseScore = 80; // Start at 80 for new accounts
-  const completionBonus = total > 0 ? (completed.length / total) * 20 : 0;
-  const reputationScore = Math.min(100, Math.round(baseScore + completionBonus));
-  
-  const responseRate = total > 0 ? Math.round((completed.length / total) * 100) : 92;
-  const thisMonthCount = completed.filter(s => Date.now() - s.session.createdAt < 30 * 24 * 3600 * 1000).length;
+  const total = completed.length;
+  const respondedWithinWindow = completed.filter(item => {
+    if (!item.session.hrRespondedAt || !item.session.completedAt) return false;
+    return item.session.hrRespondedAt - item.session.completedAt <= FORTY_EIGHT_HOURS;
+  });
+  const ghostingEvents = completed.filter(item => {
+    if (!item.session.completedAt || item.session.hrRespondedAt) return false;
+    return now - item.session.completedAt > FORTY_EIGHT_HOURS;
+  }).length;
 
-  const circumference = 2 * Math.PI * 38;
-  const dashOffset = circumference * (1 - reputationScore / 100);
+  const baseScore = total >= 5 ? 70 : 80;
+  const responseBonus = total > 0 ? (respondedWithinWindow.length / total) * 30 : 0;
+  const reputationScore = Math.min(100, Math.round(baseScore + responseBonus));
+
+  const responseRate = total > 0 ? Math.round((respondedWithinWindow.length / total) * 100) : 100;
+  const thisMonthCount = completed.filter(s => now - s.session.createdAt < 30 * 24 * 3600 * 1000).length;
 
   return (
     <div style={{

@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   // better-sqlite3 is a native Node.js module — exclude from bundling
@@ -6,8 +6,7 @@ const nextConfig: NextConfig = {
   // Silence Turbopack warning (no custom webpack config needed for our setup)
   turbopack: {},
   devIndicators: {
-    appIsrStatus: false,
-    buildActivity: false,
+    position: 'bottom-right',
   },
 };
 

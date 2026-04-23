@@ -47,6 +47,15 @@ export async function POST(req: NextRequest) {
       total_away_duration_seconds: 0,
       paste_events: 0,
       tab_switches: 0,
+      current_question_focus_loss_seconds: 0,
+      current_question_tab_switches: 0,
+      integrity_stage: 'clean',
+      answer_timings_ms: [],
+      last_answer_elapsed_ms: 0,
+      timing_anomaly_count: 0,
+      last_answer_timing_anomaly: false,
+      ai_paste_detected: false,
+      ai_paste_char_count: 0,
     };
 
     const sessionId = uuid();

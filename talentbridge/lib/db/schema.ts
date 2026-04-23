@@ -1,6 +1,6 @@
 // lib/db/schema.ts
 // Drizzle ORM schema for TalentBridge AI — SQLite tables
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 // ─── JD Cache ──────────────────────────────────────────────────────────────────
 // One row per JD upload. Mapper + DimensionQA run once; output cached here.
@@ -41,7 +41,7 @@ export const sessions = sqliteTable('sessions', {
   coverageMap: text('coverage_map').notNull().default('{}'), // JSON
   // Sentinel aggregate state
   sentinelData: text('sentinel_data').notNull().default(
-    '{"focus_loss_events":0,"total_away_duration_seconds":0,"paste_events":0,"tab_switches":0}'
+    '{"focus_loss_events":0,"total_away_duration_seconds":0,"paste_events":0,"tab_switches":0,"current_question_focus_loss_seconds":0,"current_question_tab_switches":0,"integrity_stage":"clean","answer_timings_ms":[],"last_answer_elapsed_ms":0,"timing_anomaly_count":0,"last_answer_timing_anomaly":false,"ai_paste_detected":false,"ai_paste_char_count":0}'
   ), // JSON: SentinelData
   // Language Style Analyzer output — only set if Sentinel Stage 2 fires
   styleAnalysis: text('style_analysis'),          // JSON: StyleAnalysisResult | null
@@ -53,6 +53,15 @@ export const sessions = sqliteTable('sessions', {
   // HR response tracking (for Reputation Score + ghosting detection)
   hrRespondedAt: integer('hr_responded_at'),
   hrResponse: text('hr_response'),               // 'offer' | 'reject' | 'hold' | null
+  interviewScheduledAt: integer('interview_scheduled_at'),
+  interviewMeetingLink: text('interview_meeting_link'),
+  interviewScheduleNote: text('interview_schedule_note'),
+  disputeRequestedAt: integer('dispute_requested_at'),
+  disputeReason: text('dispute_reason'),
+  disputeStatus: text('dispute_status'),
+  moderationStatus: text('moderation_status'),
+  moderationErrors: text('moderation_errors'),
+  moderationEscalatedAt: integer('moderation_escalated_at'),
 });
 
 // ─── Transcripts ───────────────────────────────────────────────────────────────
