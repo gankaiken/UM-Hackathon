@@ -8,7 +8,7 @@ import { useSentinelStore } from '@/store/sentinelStore';
 import type { TranscriptEntry, SentinelData } from '@/lib/types';
 import { buildMessageId, getCurrentTimestamp } from '@/lib/utils/runtime';
 
-type ChatState = 'loading' | 'entry' | 'chatting' | 'closing' | 'verdict_pending' | 'done' | 'expired';
+type ChatState = 'loading' | 'welcome' | 'entry' | 'chatting' | 'closing' | 'verdict_pending' | 'done' | 'expired';
 interface Message {
   id: string;
   role: 'inquisitor' | 'candidate';
@@ -18,6 +18,8 @@ interface Message {
 
 interface SessionPayload {
   candidateName: string;
+  roleTitle?: string;
+  companyName?: string;
   mapperResult?: { role_title?: string };
   turnCount: number;
   coverageMap?: Record<string, string>;
@@ -29,10 +31,10 @@ interface SessionPayload {
 
 const TIMELINE_STEPS = [
   { id: 'profile',   label: 'Profile submitted' },
-  { id: 'mapper',    label: 'JD mapped (Mapper)' },
+  { id: 'mapper',    label: 'Application reviewed' },
   { id: 'interview', label: 'Interview in progress' },
-  { id: 'auditor',   label: 'Auditor scoring' },
-  { id: 'verdict',   label: 'Verdict generated' },
+  { id: 'auditor',   label: 'Evaluating your answers' },
+  { id: 'verdict',   label: 'Results ready' },
 ];
 
 export default function InterviewPage() {
@@ -43,17 +45,20 @@ export default function InterviewPage() {
   const [state, setState] = useState<ChatState>('loading');
   const [candidateName, setCandidateName] = useState('');
   const [roleTitle, setRoleTitle] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isWaiting, setIsWaiting] = useState(false);
   const [turnCount, setTurnCount] = useState(0);
   const [debugMap, setDebugMap] = useState<Record<string, string>>({});
   const [debugReasoning, setDebugReasoning] = useState('');
+  const [tabAway, setTabAway] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const questionPresentedAtRef = useRef<number | null>(null);
+  const hasStartedRef = useRef(false);
   const {
     data: sentinelData,
     hydrate: hydrateSentinel,
@@ -67,7 +72,22 @@ export default function InterviewPage() {
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
+  // Tab-switch detection during interview
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.hidden && (state === 'chatting' || state === 'closing')) {
+        setTabAway(true);
+      } else {
+        setTabAway(false);
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [state]);
+
   async function sendFirstQuestion(name: string, role: string) {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
     setIsWaiting(true);
     await sendMessage('__INTERVIEW_START__', name, role);
     setIsWaiting(false);
@@ -192,10 +212,11 @@ export default function InterviewPage() {
         const res = await fetch(`/api/session/${sessionId}`);
         if (!res.ok) { setState('entry'); return; }
         const sessionData = await res.json() as SessionPayload;
-        const initialRoleTitle = sessionData.mapperResult?.role_title ?? 'this role';
+        const initialRoleTitle = sessionData.roleTitle ?? sessionData.mapperResult?.role_title ?? 'this role';
 
         setCandidateName(sessionData.candidateName);
         setRoleTitle(initialRoleTitle);
+        setCompanyName(sessionData.companyName ?? '');
         setTurnCount(sessionData.turnCount);
         setDebugMap(sessionData.coverageMap || {});
         hydrateSentinel(sessionData.sentinelData || {});
@@ -209,16 +230,19 @@ export default function InterviewPage() {
         if (sessionData.status === 'completed') { router.push(`/result/${sessionId}`); return; }
         if (sessionData.sessionLifecycleStatus === 'expired') { setState('expired'); return; }
         if (sessionData.candidateName && sessionData.transcript.length > 0) {
-          const restored: Message[] = sessionData.transcript.map((t: TranscriptEntry) => ({
-            id: `${t.role}-${t.turnNumber}`, role: t.role, content: t.content,
-          }));
+          // Resume existing session — filter out any __INTERVIEW_START__ artifacts
+          const restored: Message[] = sessionData.transcript
+            .filter((t: TranscriptEntry) => t.content !== '__INTERVIEW_START__')
+            .map((t: TranscriptEntry) => ({
+              id: `${t.role}-${t.turnNumber}`, role: t.role, content: t.content,
+            }));
           setMessages(restored);
           setState('chatting');
           questionPresentedAtRef.current = getCurrentTimestamp();
           beginQuestionWindow();
         } else if (sessionData.candidateName) {
-          setState('chatting');
-          sendFirstQuestion(sessionData.candidateName, initialRoleTitle);
+          // Show welcome screen before starting interview
+          setState('welcome');
         } else {
           setState('entry');
         }
@@ -235,13 +259,86 @@ export default function InterviewPage() {
   }
 
   // Active step index
-  const activeStepIdx = state === 'entry' ? 0 : state === 'chatting' ? 2 : state === 'verdict_pending' ? 3 : state === 'done' ? 4 : 2;
+  const activeStepIdx = (state === 'entry' || state === 'welcome') ? 1 : state === 'chatting' ? 2 : state === 'verdict_pending' ? 3 : state === 'done' ? 4 : 2;
 
   // ── Loading state ────────────────────────────────────────────────────────
   if (state === 'loading') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF' }}>
         <div className="spinner" style={{ width: 32, height: 32, border: '3px solid #F1F5F9', borderTop: '3px solid #2563EB' }} />
+      </div>
+    );
+  }
+
+  // ── Welcome Screen ───────────────────────────────────────────────────────
+  if (state === 'welcome') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, #F6F9FF 0%, #FFFFFF 100%)', padding: 24 }}>
+        <div style={{ maxWidth: 580, width: '100%' }} className="fade-in">
+          {/* Company tag */}
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 20, padding: '6px 14px', marginBottom: 24 }}>
+              <div style={{ width: 24, height: 24, borderRadius: 6, background: 'linear-gradient(135deg,#2563EB,#0EA5E9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 11 }}>
+                {(companyName || 'C').charAt(0)}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1D4ED8', fontFamily: 'var(--font-body)' }}>{companyName || 'Company'}</span>
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 800, color: '#0A0C12', letterSpacing: '-0.8px', marginBottom: 8 }}>
+              Hi {candidateName} 👋
+            </h1>
+            <p style={{ fontSize: 16, color: '#64748B', fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
+              You are about to start your AI interview for <strong style={{ color: '#0A0C12' }}>{roleTitle}</strong>.
+            </p>
+          </div>
+
+          {/* What to expect */}
+          <div style={{ background: '#FFFFFF', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 28, marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 16 }}>What to expect</div>
+            {[
+              { icon: '💬', title: 'Conversational format', desc: 'Answer at your own pace — no time pressure per question. Just share your experiences naturally.' },
+              { icon: '🎯', title: 'Relevant questions only', desc: 'The AI will ask about skills directly related to this role. No trick questions.' },
+              { icon: '📋', title: 'About 4–6 minutes', desc: 'Short and focused. You will know when the session wraps up.' },
+              { icon: '🔒', title: 'Private and secure', desc: 'Your responses are only shared with the hiring team for this role.' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', gap: 14, marginBottom: i < 3 ? 16 : 0 }}>
+                <div style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{item.icon}</div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0A0C12', marginBottom: 2, fontFamily: 'var(--font-body)' }}>{item.title}</div>
+                  <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Note about tab switching */}
+          <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '12px 16px', marginBottom: 24, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 16 }}>⚠️</span>
+            <p style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5, fontFamily: 'var(--font-body)', margin: 0 }}>
+              Please stay on this page during the interview. Switching to other tabs or apps will be detected and noted.
+            </p>
+          </div>
+
+          <button
+            onClick={() => {
+              setState('chatting');
+              sendFirstQuestion(candidateName, roleTitle);
+            }}
+            style={{
+              width: '100%', height: 54, borderRadius: 14, border: 'none',
+              background: 'linear-gradient(135deg, #2563EB, #0EA5E9)',
+              color: '#FFFFFF', fontSize: 16, fontWeight: 700,
+              fontFamily: 'var(--font-body)', cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(37,99,235,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              transition: 'all 0.2s ease',
+            }}
+          >
+            I am ready — Start Interview →
+          </button>
+          <p style={{ textAlign: 'center', marginTop: 12, fontSize: 12, color: '#9CA3AF', fontFamily: 'var(--font-body)' }}>
+            Your session is recorded for evaluation purposes
+          </p>
+        </div>
       </div>
     );
   }
@@ -301,6 +398,23 @@ export default function InterviewPage() {
   // ── Main Chat Interface ──────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', flexDirection: 'column' }}>
+      {/* Tab-away warning overlay */}
+      {tabAway && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(10,12,18,0.92)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(8px)',
+        }}>
+          <div style={{ textAlign: 'center', color: '#FFFFFF', maxWidth: 380, padding: 24 }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, marginBottom: 12 }}>Please return to the interview</h2>
+            <p style={{ color: '#94A3B8', lineHeight: 1.6, fontSize: 14, fontFamily: 'var(--font-body)' }}>
+              Switching away from this page has been logged. Please return to continue your session.
+            </p>
+          </div>
+        </div>
+      )}
       <SentinelTracker />
       <DebugPanel coverageMap={debugMap} reasoning={debugReasoning} />
       
@@ -331,11 +445,13 @@ export default function InterviewPage() {
         </div>
 
         <div style={{ 
-          background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)',
+          background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
           borderRadius: 8, padding: '4px 12px', fontSize: 11, fontWeight: 700, 
-          color: '#2563EB', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' 
+          color: '#059669', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px',
+          display: 'flex', alignItems: 'center', gap: 6
         }}>
-          SENTINEL MONITORING ENABLED
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+          Session in progress
         </div>
       </header>
 

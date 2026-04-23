@@ -66,6 +66,12 @@ export async function GET(
       sessionId: session.id,
       jdId: session.jdId,
       candidateName: session.candidateName,
+      // ── Extra info for welcome screen / My Applications ────────
+      roleTitle: jd.roleTitle,
+      companyName: jd.employerId === 'default' ? 'Nexus Digital Sdn Bhd' : jd.employerId,
+      hrResponse: session.hrResponse,
+      scheduledSlot: session.scheduledSlot,
+      // ───────────────────────────────────────────────────────────
       status: session.status,
       foundJob: session.foundJob,
       foundJobAt: session.foundJobAt,
