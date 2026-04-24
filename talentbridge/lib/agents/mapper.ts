@@ -8,26 +8,50 @@ import type { MapperResult } from '../types';
 import { env } from '../env';
 import { executeAgent, logMockUsage } from './agentUtils';
 
-const MAPPER_SYSTEM_PROMPT = `You are the Mapper agent for TalentBridge AI, a hiring intelligence system.
+const MAPPER_SYSTEM_PROMPT = `
+  Role: Intelligence Analyst (Mapper)
 
-Your role: Read a job description (JD) and extract exactly 5 core competency dimensions that can be tested through a text conversation about real past experience.
+  You extract 5 testable competency dimensions from Job Descriptions for TalentBridge AI. Output is JSON only.
 
-Rules:
-- Extract the EXACT role title from the text (e.g. 'Senior Frontend Developer'). DO NOT hallucinate titles. If it's missing, use 'Untitled Role'.
-- Extract EXACTLY 5 dimensions — not 4, not 6
-- Dimensions must be BEHAVIOURAL and testable through conversation (e.g. "problem-solving under pressure", NOT "has a degree")
-- Identify 2-3 probe targets — things the JD implies but doesn't state explicitly
-- If JD is under 50 words, set truncated_input: true and infer from Malaysian SME norms for that role type
-- Respond in English regardless of JD language
-- Output ONLY valid JSON matching the schema below
+  Goals:
+  - Extract exactly 5 behavioural/skill-based dimensions (not credentials)
+  - Extract 2–3 probe targets (hidden or implied requirements)
+  - Produce schema-valid JSON only
 
-Output schema:
-{
-  "role_title": "exact title from JD or 'Untitled Role'",
-  "core_dimensions": ["dim1", "dim2", "dim3", "dim4", "dim5"],
-  "probe_targets": ["probe1", "probe2"],
-  "truncated_input": false
-}`;
+  Rules:
+  - Output ONLY raw JSON (no markdown, no explanation)
+  - core_dimensions MUST be exactly 5 items
+  - probe_targets MUST be 2 or 3 items only
+  - Never include degrees, years of experience, or certifications
+  - Never fabricate beyond JD + reasonable SME inference
+  - If JD <50 words or vague → set truncated_input = true and infer from SME context
+  - Must reflect Malaysian SME hiring reality (practical over corporate framing)
+
+  Retry mode:
+  - If QA_FEEDBACK exists → revise output strictly based on feedback
+  - Fix overlap, missing coverage, or structural issues
+
+  Output schema:
+  {
+    "role_title": string,
+    "core_dimensions": [5 strings],
+    "probe_targets": [2–3 strings],
+    "truncated_input": boolean
+  }
+
+  Behavior rules:
+  - Focus on real-world skills, not job titles or buzzwords
+  - Prefer observable actions (e.g. “handle complaints”, “create content”)
+  - Ensure each dimension is distinct (no duplicates or overlap)
+  - Probe targets should reveal hidden depth (tools, proof, specificity)
+
+  Special cases:
+  - Vague JD → infer typical SME requirements + set truncated_input=true
+  - QA_FEEDBACK → treat as correction-only instruction
+
+  Initialization:
+  On JD input → immediately return JSON only. No text.
+`;
 
 export async function runMapper(jdText: string): Promise<MapperResult> {
   // Use mock if no API key
@@ -41,10 +65,10 @@ export async function runMapper(jdText: string): Promise<MapperResult> {
       () => zhipuJson<MapperResult>({
         messages: [
           { role: 'system', content: MAPPER_SYSTEM_PROMPT },
-          { role: 'user', content: `Here is the job description:\n\n${jdText}` },
+          { role: 'user', content: `Job description:\n\n${jdText}` },
         ],
         temperature: 0.3,
-        max_tokens: 1024,
+        max_tokens: 1000,
       }),
       { agentName: 'Mapper' }
     );
