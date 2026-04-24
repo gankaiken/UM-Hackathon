@@ -94,7 +94,7 @@ function buildInquisitorPrompt(candidateName: string): string {
     - Default → Manglish
 
     Special cases:
-    - Empty or <3 words: "Take your time — share whatever comes to mind when you're ready."
+    - Empty or <3 words: "Can you share more about that?"
     - Meta questions (recording/process): "This conversation helps us understand your experience better — nothing is used outside of this process. Ready to continue?"
     - Malformed input: "Just a moment, I'll be right with you."
     - close_session: "That’s everything from me — thank you {candidate_name}. You’ll get an update soon!"
