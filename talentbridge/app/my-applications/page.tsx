@@ -156,11 +156,11 @@ export default function MyApplicationsPage() {
                             View Feedback Report
                           </Link>
                         ) : app.status === 'active' ? (
-                          <Link href={`/interview/${app.sessionId}`} style={{
+                          <Link href={`/interview/${app.sessionId}/history`} style={{
                             background: 'linear-gradient(135deg,#2563EB,#0EA5E9)', color: '#FFFFFF',
                             padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none',
                           }}>
-                            Continue Interview →
+                            Review Interview →
                           </Link>
                         ) : (
                           <span style={{ background: '#F8FAFC', color: '#94A3B8', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
