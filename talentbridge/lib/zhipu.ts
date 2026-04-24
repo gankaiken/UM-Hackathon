@@ -3,8 +3,8 @@
 // Supports both streaming (SSE) and non-streaming (JSON mode) calls.
 // Docs: https://docs.z.ai/api-reference/llm/chat-completion
 
-const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4';
-const DEFAULT_MODEL = 'glm-4.5-flash';
+const ZAI_BASE_URL = 'https://api.ilmu.ai/v1';
+const DEFAULT_MODEL = 'ilmu-glm-5.1';
 const REQUEST_TIMEOUT_MS = 45_000;
 
 function getApiKey(): string {
@@ -53,7 +53,7 @@ export async function zhipuCall(options: ZhipuCallOptions): Promise<string> {
       model: getModel(options.model),
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
-      max_tokens: options.max_tokens ?? 2048,
+      max_tokens: options.max_tokens ?? 5000,
       stream: false,
       response_format: options.response_format ?? { type: 'text' },
       thinking: { type: 'disabled' },
