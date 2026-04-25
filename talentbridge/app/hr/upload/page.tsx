@@ -34,6 +34,8 @@ const JD_TEMPLATES = [
 
 export default function PostJobPage() {
   const [jdText, setJdText] = useState('');
+  const [customDimensions, setCustomDimensions] = useState('');
+  const [quizQuestions, setQuizQuestions] = useState('');
   const [state, setState] = useState<UploadState>('idle');
   const [tickerIdx, setTickerIdx] = useState(0);
   const [result, setResult] = useState<JdUploadResponse | null>(null);
@@ -58,7 +60,11 @@ export default function PostJobPage() {
       const res = await fetch('/api/jd/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfTokenFromCookie() },
-        body: JSON.stringify({ jdText: jdText.trim() }),
+        body: JSON.stringify({
+          jdText: jdText.trim(),
+          customDimensions: customDimensions.trim() ? customDimensions.split('\n').filter(Boolean) : [],
+          quizQuestions: quizQuestions.trim() ? quizQuestions.split('\n').filter(Boolean) : []
+        }),
       });
       if (tickerRef.current) clearInterval(tickerRef.current);
 
@@ -193,6 +199,71 @@ export default function PostJobPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Custom Dimensions */}
+      <div className="card" style={{ padding: 28, marginBottom: 20 }}>
+        <label className="section-label" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          Custom Dimensions (Optional)
+          <span style={{ fontSize: 11, background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, color: '#4B5563', fontWeight: 500 }}>New</span>
+        </label>
+        <div style={{
+          background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)',
+          borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E', marginBottom: 12,
+          fontFamily: 'var(--font-body)', lineHeight: 1.5
+        }}>
+          <strong>Safety Warning:</strong> Do not include discriminatory categories (age, race, religion, gender, marital status, disability). Reframe nationality as "legal work authorization" and language traits as specific role requirements (e.g., "Mandarin proficiency required for role").
+        </div>
+        <textarea
+          value={customDimensions}
+          onChange={e => setCustomDimensions(e.target.value)}
+          placeholder="e.g. Customer-facing confidence&#10;Technical architecture skills&#10;Legal work authorization"
+          disabled={state === 'scanning' || state === 'qa'}
+          rows={3}
+          style={{
+            width: '100%', border: '1.5px solid #D1D5DB', borderRadius: 10, padding: '14px 16px',
+            color: '#0A0C12', fontSize: 14, lineHeight: 1.65, resize: 'vertical', outline: 'none',
+            fontFamily: 'inherit', background: '#FFFFFF', transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+          onFocus={e => {
+            e.target.style.borderColor = '#2563EB';
+            e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
+          }}
+          onBlur={e => {
+            e.target.style.borderColor = '#D1D5DB';
+            e.target.style.boxShadow = 'none';
+          }}
+        />
+      </div>
+
+      {/* Pre-Interview Quiz Questions */}
+      <div className="card" style={{ padding: 28, marginBottom: 20 }}>
+        <label className="section-label" style={{ marginBottom: 4 }}>
+          Pre-Interview Quiz Questions (Optional)
+        </label>
+        <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 12, fontFamily: 'var(--font-body)' }}>
+          One question per line. Candidates will answer these before the AI interview.
+        </p>
+        <textarea
+          value={quizQuestions}
+          onChange={e => setQuizQuestions(e.target.value)}
+          placeholder="e.g. How many years of React experience do you have?&#10;Do you require visa sponsorship?"
+          disabled={state === 'scanning' || state === 'qa'}
+          rows={3}
+          style={{
+            width: '100%', border: '1.5px solid #D1D5DB', borderRadius: 10, padding: '14px 16px',
+            color: '#0A0C12', fontSize: 14, lineHeight: 1.65, resize: 'vertical', outline: 'none',
+            fontFamily: 'inherit', background: '#FFFFFF', transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+          onFocus={e => {
+            e.target.style.borderColor = '#2563EB';
+            e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)';
+          }}
+          onBlur={e => {
+            e.target.style.borderColor = '#D1D5DB';
+            e.target.style.boxShadow = 'none';
+          }}
+        />
       </div>
 
       {/* Upload Button */}

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const csrfError = requireCsrf(req);
     if (csrfError) return csrfError;
 
-    const { jdText } = await req.json();
+    const { jdText, customDimensions, quizQuestions } = await req.json();
 
     if (!jdText || typeof jdText !== 'string' || jdText.trim().length < 10) {
       return NextResponse.json({ error: 'JD text is required (min 10 chars)' }, { status: 400 });
@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
       qaStatus: qaResult.status,
       qaOutput: JSON.stringify(qaResult),
       interviewLink,
+      customDimensions: JSON.stringify(customDimensions || []),
+      quizQuestions: JSON.stringify(quizQuestions || []),
       createdAt: now,
     }).run();
 

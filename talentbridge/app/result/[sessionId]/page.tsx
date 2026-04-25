@@ -2,6 +2,7 @@
 // app/result/[sessionId]/page.tsx — Premium Result Delivery v3.0
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import type { VerdictResult } from '@/lib/types';
 import { hashStringToRange } from '@/lib/utils/runtime';
 
@@ -551,6 +552,33 @@ export default function ResultPage() {
           <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
             Thank you for applying via TalentBridge AI.<br />
             Your assessment has been securely delivered to the employer.
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 20 }}>
+            <Link href="/jobs" style={{
+              background: '#FFFFFF', color: '#374151', border: '1px solid #D1D5DB',
+              padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+              textDecoration: 'none', fontFamily: 'var(--font-body)'
+            }}>
+              Back to Jobs
+            </Link>
+            <Link href="/my-applications" style={{
+              background: '#FFFFFF', color: '#374151', border: '1px solid #D1D5DB',
+              padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+              textDecoration: 'none', fontFamily: 'var(--font-body)'
+            }}>
+              View My Applications
+            </Link>
+            {isGreen && interviewScheduledAt && interviewMeetingLink && (
+              <a href={interviewMeetingLink} target="_blank" rel="noreferrer" style={{
+                background: '#2563EB', color: '#FFFFFF', border: 'none',
+                padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                textDecoration: 'none', fontFamily: 'var(--font-body)',
+                boxShadow: '0 4px 12px rgba(37,99,235,0.2)'
+              }}>
+                Go to Scheduling / Interview Booking
+              </a>
+            )}
           </div>
 
           {/* Found a Job CTA */}

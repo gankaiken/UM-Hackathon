@@ -60,6 +60,9 @@ function initSchema(sqlite: Database.Database) {
       interview_link TEXT NOT NULL DEFAULT '',
       role_filled INTEGER NOT NULL DEFAULT 0,
       role_filled_at INTEGER,
+      timeslots TEXT,
+      custom_dimensions TEXT,
+      quiz_questions TEXT,
       created_at INTEGER NOT NULL
     );
 
@@ -102,6 +105,8 @@ function initSchema(sqlite: Database.Database) {
       session_lifecycle_status TEXT,
       session_expired_at INTEGER,
       partial_profile_created_at INTEGER,
+      quiz_answers TEXT,
+      pre_screening_context TEXT,
       orchestration_state TEXT
     );
 
@@ -167,6 +172,8 @@ function initSchema(sqlite: Database.Database) {
     { name: 'role_filled', definition: 'INTEGER NOT NULL DEFAULT 0' },
     { name: 'role_filled_at', definition: 'INTEGER' },
     { name: 'timeslots', definition: 'TEXT' },
+    { name: 'custom_dimensions', definition: 'TEXT' },
+    { name: 'quiz_questions', definition: 'TEXT' },
   ]);
 
   ensureTableColumns(sqlite, 'sessions', [
@@ -196,6 +203,8 @@ function initSchema(sqlite: Database.Database) {
     { name: 'session_lifecycle_status', definition: 'TEXT' },
     { name: 'session_expired_at', definition: 'INTEGER' },
     { name: 'partial_profile_created_at', definition: 'INTEGER' },
+    { name: 'quiz_answers', definition: 'TEXT' },
+    { name: 'pre_screening_context', definition: 'TEXT' },
     { name: 'orchestration_state', definition: 'TEXT' },
     { name: 'scheduled_slot', definition: 'TEXT' },
   ]);

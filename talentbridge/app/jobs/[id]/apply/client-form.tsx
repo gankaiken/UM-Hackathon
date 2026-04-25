@@ -114,7 +114,7 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
         localStorage.setItem('tb_my_applications', JSON.stringify(prev.slice(0, 20)));
         localStorage.removeItem('apply_form_draft');
       } catch { /* localStorage unavailable */ }
-      router.push(`/interview/${data.sessionId}`);
+      router.push(`/pre-interview/${data.sessionId}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);

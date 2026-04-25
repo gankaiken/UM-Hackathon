@@ -25,6 +25,8 @@ export const jdCache = sqliteTable('jd_cache', {
   roleFilled: integer('role_filled', { mode: 'boolean' }).notNull().default(false),
   roleFilledAt: integer('role_filled_at'),
   timeslots: text('timeslots'),
+  customDimensions: text('custom_dimensions'),
+  quizQuestions: text('quiz_questions'),
   createdAt: integer('created_at').notNull(),
 });
 
@@ -78,6 +80,8 @@ export const sessions = sqliteTable('sessions', {
   sessionLifecycleStatus: text('session_lifecycle_status'),
   sessionExpiredAt: integer('session_expired_at'),
   partialProfileCreatedAt: integer('partial_profile_created_at'),
+  quizAnswers: text('quiz_answers'),
+  preScreeningContext: text('pre_screening_context'),
   // Agent 8 Orchestration
   orchestrationState: text('orchestration_state'), // JSON: { mode, status, steps, lastError, updatedAt }
   // Phase 3: Finalized schedule selection
