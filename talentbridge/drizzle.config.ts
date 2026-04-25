@@ -1,10 +1,10 @@
-import type { Config } from 'drizzle-kit';
+import { defineConfig } from "drizzle-kit";
 
-export default {
-  schema: './lib/db/schema.ts',
-  out: './lib/db/migrations',
-  dialect: 'sqlite',
+export default defineConfig({
+  dialect: "sqlite",
+  schema: "./lib/db/schema.ts",
+  out: "./lib/db/migrations",
   dbCredentials: {
-    url: './talentbridge.db',
+    url: "./talentbridge.db",
   },
-} satisfies Config;
+});
