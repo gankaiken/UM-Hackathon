@@ -1,4 +1,4 @@
-# [Pitching Video]() 
+# [Pitching Video](https://drive.google.com/drive/folders/1ypFNOvQsvxY4ZY2iXfR7_k9ELp2wERwQ?usp=drive_link) 
 
 
 # TalentBridge AI — Authentic Talent Verification & Closed-Loop Talent Hub
