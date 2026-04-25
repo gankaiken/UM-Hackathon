@@ -146,18 +146,7 @@ export default function GlobalNav() {
           ) : (
             <>
               <NavItem href="/jobs" label="Job search" active={isActive('/jobs')} />
-              <button 
-                onClick={(e) => { e.preventDefault(); showToast(); }}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer', padding: '8px 18px',
-                  borderRadius: 10, fontSize: 14, fontWeight: 500, color: '#4B5568',
-                  fontFamily: 'var(--font-body)', position: 'relative', transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#0A0C12'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4B5568'; }}
-              >
-                My applications
-              </button>
+              <NavItem href="/my-applications" label="My applications" active={isActive('/my-applications')} />
               <NavItem href="/how-it-works" label="How it works" active={isActive('/how-it-works')} />
             </>
           )}

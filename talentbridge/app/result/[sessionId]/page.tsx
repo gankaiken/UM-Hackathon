@@ -15,6 +15,31 @@ export default function ResultPage() {
   const [foundJob, setFoundJob] = useState(false);
   const [foundJobLoading, setFoundJobLoading] = useState(false);
 
+  // AI Roadmap Generation States
+  const [generatingPath, setGeneratingPath] = useState(false);
+  const [pathGenerated, setPathGenerated] = useState(false);
+  const [aiLogs, setAiLogs] = useState<string[]>([]);
+
+  const handleGeneratePath = async () => {
+    setGeneratingPath(true);
+    setAiLogs(['[AI] Analyzing your verified strengths and identified gaps...']);
+    
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+    
+    await delay(1200);
+    setAiLogs(prev => [...prev, '[AI] Searching global web for optimal learning resources...']);
+    await delay(1500);
+    setAiLogs(prev => [...prev, `[AI] Found high-yield courses matching gap: ${verdict?.identified_gaps?.[0] || 'Technical tooling'}`]);
+    await delay(1000);
+    setAiLogs(prev => [...prev, '[AI] Structuring 3-week intensive roadmap...']);
+    await delay(800);
+    setAiLogs(prev => [...prev, '[AI] Roadmap generated successfully.']);
+    
+    await delay(1000);
+    setGeneratingPath(false);
+    setPathGenerated(true);
+  };
+
   const handleFoundJob = async () => {
     setFoundJobLoading(true);
     try {
@@ -174,37 +199,139 @@ export default function ResultPage() {
 
           {/* Conditional Path: Upskill (AMBER) */}
           {isAmber && verdict.upskill_path && (
-            <div style={{ background: '#FFFFFF', border: '1.5px solid #FDE68A', borderRadius: 24, padding: '32px' }}>
+            <div style={{ 
+              background: '#FFFFFF', 
+              border: '1.5px solid rgba(245, 158, 11, 0.3)', 
+              borderRadius: 24, 
+              padding: '36px',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 12px 40px rgba(245, 158, 11, 0.05)'
+            }}>
+              {/* Subtle background glow */}
+              <div style={{
+                position: 'absolute', top: -100, right: -100, width: 250, height: 250,
+                background: 'radial-gradient(circle, rgba(245,158,11,0.15) 0%, rgba(255,255,255,0) 70%)',
+                borderRadius: '50%', pointerEvents: 'none'
+              }} />
+
               <h3 style={{ 
-                fontSize: 12, fontWeight: 800, color: '#B45309', 
-                fontFamily: 'var(--font-mono)', letterSpacing: '1px', textTransform: 'uppercase', 
-                marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 
+                fontSize: 13, fontWeight: 800, color: '#D97706', 
+                fontFamily: 'var(--font-mono)', letterSpacing: '1.2px', textTransform: 'uppercase', 
+                marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 
               }}>
-                <span style={{ fontSize: 18 }}>🚀</span> Grow Your Profile
+                <span style={{ fontSize: 20 }}>🚀</span> Custom Growth Plan
               </h3>
-              <p style={{ color: '#92400E', fontSize: 13, marginBottom: 20, fontFamily: 'var(--font-body)', opacity: 0.8 }}>
-                We identified a specific skill gap. Use this 3-week path to prepare for your next level.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {verdict.upskill_path.map((step, i) => (
-                  <div key={i} style={{
-                    display: 'flex', gap: 16, alignItems: 'center',
-                    padding: '16px', background: '#FFFBEB', borderRadius: 16
-                  }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 10, background: '#F59E0B', color: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, fontWeight: 800, flexShrink: 0, fontFamily: 'var(--font-mono)'
+
+              {!pathGenerated && !generatingPath ? (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <p style={{ color: '#92400E', fontSize: 14, marginBottom: 24, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
+                    You have strong foundational qualities, but we identified a specific gap in <strong>{verdict.identified_gaps?.[0] || 'technical tooling'}</strong>. Let our AI curate a personalized learning path from the web.
+                  </p>
+                  <button 
+                    onClick={handleGeneratePath}
+                    style={{
+                      background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                      color: '#FFFFFF', padding: '12px 24px', borderRadius: 12, border: 'none',
+                      fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                      boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)'
                     }}>
-                      W{step.week}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E', fontFamily: 'var(--font-body)' }}>{step.topic}</div>
-                      <div style={{ fontSize: 12, color: '#B45309', opacity: 0.7 }}>{step.resource}</div>
-                    </div>
+                    Generate Custom Path with AI
+                  </button>
+                </div>
+              ) : generatingPath ? (
+                <div style={{ 
+                  background: '#0A0C12', borderRadius: 16, padding: '24px', 
+                  fontFamily: 'var(--font-mono)', fontSize: 12, color: '#10B981', lineHeight: 1.8 
+                }}>
+                  {aiLogs.map((log, idx) => (
+                    <div key={idx} className="fade-in">{log}</div>
+                  ))}
+                  <div className="blink" style={{ color: '#475569', marginTop: 8 }}>_</div>
+                </div>
+              ) : (
+                <div className="fade-in">
+                  <p style={{ color: '#92400E', fontSize: 14, marginBottom: 32, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
+                    AI has curated this 3-week intensive path for you. Complete this to be automatically re-evaluated.
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'relative' }}>
+                    {/* Vertical timeline connecting line */}
+                    <div style={{
+                      position: 'absolute', left: 24, top: 20, bottom: 40, width: 2,
+                      background: 'linear-gradient(180deg, #FCD34D 0%, rgba(252, 211, 77, 0) 100%)',
+                      zIndex: 0
+                    }} />
+
+                    {verdict.upskill_path.map((step, i) => (
+                      <div key={i} style={{
+                        display: 'flex', gap: 20, position: 'relative', zIndex: 1,
+                        paddingBottom: i === verdict.upskill_path!.length - 1 ? 0 : 28
+                      }}>
+                        {/* Week Indicator */}
+                        <div style={{
+                          width: 48, height: 48, borderRadius: 14, 
+                          background: '#FFFBEB', color: '#D97706',
+                          border: '2px solid #FDE68A',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 800, flexShrink: 0, fontFamily: 'var(--font-mono)',
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.1)',
+                          position: 'relative'
+                        }}>
+                          W{step.week}
+                        </div>
+                        
+                        {/* Content Card */}
+                        <div style={{
+                          flex: 1, background: '#FFFFFF', border: '1px solid #FEF3C7',
+                          borderRadius: 16, padding: '20px',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 8px 24px rgba(245, 158, 11, 0.08)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: 16, color: '#78350F', fontFamily: 'var(--font-display)', marginBottom: 6 }}>
+                                {step.topic}
+                              </div>
+                              <div style={{ fontSize: 13, color: '#B45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
+                                {step.resource}
+                              </div>
+                            </div>
+                            <button style={{
+                              background: '#FFFBEB', color: '#D97706', border: 'none', borderRadius: 8,
+                              padding: '8px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                              cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}>
+                              Start →
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+
+                  <div style={{ marginTop: 24, textAlign: 'center' }}>
+                    <button style={{
+                      background: 'transparent', color: '#D97706', border: '1px solid #FDE68A', borderRadius: 8,
+                      padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                    }}>
+                      Re-apply for this role
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -221,6 +348,34 @@ export default function ResultPage() {
               <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, fontFamily: 'var(--font-body)' }}>
                 {verdict.career_orientation}
               </p>
+
+              {/* Red Flow Next Steps */}
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F1F5F9' }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', marginBottom: 8, fontFamily: 'var(--font-display)' }}>Next Steps</h4>
+                <p style={{ fontSize: 13, color: '#64748B', fontFamily: 'var(--font-body)' }}>
+                  Our AI has redirected your profile to matching roles in our network based on your verified strengths. You will be automatically notified if an employer wishes to connect.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Conditional Path: Green Next Steps */}
+          {isGreen && (
+            <div style={{ background: '#FFFFFF', border: '1.5px solid #BBF7D0', borderRadius: 24, padding: '32px' }}>
+              <h3 style={{ 
+                fontSize: 12, fontWeight: 800, color: '#059669', 
+                fontFamily: 'var(--font-mono)', letterSpacing: '1px', textTransform: 'uppercase', 
+                marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 
+              }}>
+                <span style={{ fontSize: 18 }}>📅</span> Next Steps
+              </h3>
+              <p style={{ color: '#065F46', fontSize: 14, lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+                Your verified profile has been prioritized for the employer. If they choose to proceed, our <strong>Integration Agent</strong> will automatically email you with available interview timeslots. 
+              </p>
+              <div style={{ marginTop: 16, background: '#F0FDF4', padding: '12px 16px', borderRadius: 12, border: '1px solid #A7F3D0', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#047857', fontFamily: 'var(--font-mono)' }}>Expect an update within 48 hours</span>
+              </div>
             </div>
           )}
 

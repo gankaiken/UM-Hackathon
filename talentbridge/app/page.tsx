@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import ParticleBackground from '@/components/ParticleBackground';
 import ParticleShapeWrapper from '@/components/ParticleShapeWrapper';
+import Counter from '@/components/Counter';
+
 
 
 const STATS = [
@@ -244,11 +246,12 @@ export default function LandingPage() {
             <Link href="/jobs" className="btn-secondary" style={{ height: 52, padding: '0 28px', fontSize: 16 }}>
               Find Jobs
             </Link>
-            <Link href="/how-it-works" style={{
+            <Link href="/how-it-works" className="btn-ghost" style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               fontSize: 15, color: '#4B5568', fontWeight: 500,
               textDecoration: 'none', alignSelf: 'center',
               fontFamily: 'var(--font-body)',
+              padding: '10px 16px',
             }}>
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/>
@@ -295,7 +298,7 @@ export default function LandingPage() {
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
                 }}>
-                  {s.value}
+                  <Counter end={s.value} delay={i * 100} />
                 </div>
                 <div style={{
                   fontSize: 12,
@@ -855,7 +858,7 @@ export default function LandingPage() {
                 }}>
                   npm install @talentbridge/sdk
                 </code>
-                <button className="btn-secondary" style={{ height: 46 }}>
+                <button className="btn-ghost" style={{ height: 46, color: '#F9FAFB', border: '1px solid rgba(255,255,255,0.2)' }}>
                   View API Docs
                 </button>
               </div>
