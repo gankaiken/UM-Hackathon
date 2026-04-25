@@ -13,6 +13,10 @@ const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
 ];
 
+function getGoogleRedirectUri() {
+  return env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`;
+}
+
 /**
  * Generates the Google OAuth URL for an employer.
  */
@@ -20,7 +24,7 @@ export function getGoogleAuthUrl(employerId: string) {
   const oauth2Client = new google.auth.OAuth2(
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
+    getGoogleRedirectUri()
   );
 
   return oauth2Client.generateAuthUrl({
@@ -38,7 +42,7 @@ export async function handleGoogleCallback(code: string, employerId: string) {
   const oauth2Client = new google.auth.OAuth2(
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
+    getGoogleRedirectUri()
   );
 
   const { tokens } = await oauth2Client.getToken(code);
@@ -88,7 +92,7 @@ export async function getAuthorizedGoogleClient(employerId: string) {
   const oauth2Client = new google.auth.OAuth2(
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`
+    getGoogleRedirectUri()
   );
 
   oauth2Client.setCredentials({

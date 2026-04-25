@@ -6,6 +6,8 @@ import { eq } from 'drizzle-orm';
 import { createCalendarEvent, createZoomMeeting } from '@/lib/agents/externalTools';
 import { logIntegrationEmailStep, OrchestrationState } from '@/lib/agents/integrationCoordinator';
 import { sendEmail } from '@/lib/email';
+import { getRequestIp, logAuditEvent } from '@/lib/security';
+import { requireCsrf } from '@/lib/csrf';
 
 export async function POST(
   req: NextRequest,
@@ -13,6 +15,8 @@ export async function POST(
 ) {
   try {
     const { sessionId } = await params;
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
     const { slot } = await req.json();
 
     const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
@@ -74,7 +78,7 @@ export async function POST(
     };
 
     // 2. Create Zoom Meeting (Trace in demo)
-    const zoomResult = await createZoomMeeting(employerId, `Interview: ${session.candidateName}`, matchedSlot.start);
+    const zoomResult = await createZoomMeeting(employerId, `Interview: ${session.candidateName}`, matchedSlot.start, sessionId);
     state.steps.push({
       step: 'zoom_creation',
       timestamp: Date.now(),
@@ -98,9 +102,10 @@ export async function POST(
     });
 
     // 4. Send Confirmation Email
-    const meetingDetails = zoomResult.message.includes('[TRACE]')
-      ? 'Meeting link will be shared by the hiring team.'
-      : getJoinUrl(zoomResult.data) || 'Meeting link will be shared by the hiring team.';
+    const zoomJoinUrl = getJoinUrl(zoomResult.data);
+    const meetingDetails = zoomJoinUrl
+      ? `Join Zoom meeting: ${zoomJoinUrl}`
+      : 'Meeting link will be shared by the hiring team.';
     const formattedStart = new Date(matchedSlot.start).toLocaleString('en-MY');
     const subject = `Confirmed: Interview for ${jd?.roleTitle}`;
     const text = `Hi ${session.candidateName},\n\n` +
@@ -132,13 +137,32 @@ export async function POST(
     state.updatedAt = Date.now();
     
     await db.update(sessions)
-      .set({ orchestrationState: JSON.stringify(state) })
+      .set({
+        orchestrationState: JSON.stringify(state),
+        interviewScheduledAt: Date.now(),
+        interviewMeetingLink: zoomJoinUrl || session.interviewMeetingLink || '',
+        interviewScheduleNote: zoomResult.mode === 'trace'
+          ? zoomResult.message
+          : session.interviewScheduleNote || '',
+      })
       .where(eq(sessions.id, sessionId))
       .run();
+
+    await logAuditEvent({
+      actorType: 'candidate',
+      actorId: sessionId,
+      action: 'schedule.confirm',
+      status: 'success',
+      ipAddress: getRequestIp(req),
+      targetType: 'session',
+      targetId: sessionId,
+      details: { slotStart: matchedSlot.start },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[ScheduleConfirm] Error:', err);
+    await logAuditEvent({ actorType: 'candidate', action: 'schedule.confirm', status: 'failure', ipAddress: getRequestIp(req), targetType: 'session', targetId: (await params).sessionId });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

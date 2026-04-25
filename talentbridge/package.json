@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:zhipu": "tsx scripts/check-zhipu.ts",
+    "check:google": "tsx scripts/check-google.ts",
+    "check:zoom": "tsx scripts/check-zoom.ts",
+    "check:email": "tsx scripts/check-email.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -45,6 +49,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

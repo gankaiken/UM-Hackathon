@@ -118,6 +118,19 @@ function initSchema(sqlite: Database.Database) {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor_type TEXT NOT NULL,
+      actor_id TEXT,
+      action TEXT NOT NULL,
+      status TEXT NOT NULL,
+      ip_address TEXT,
+      target_type TEXT,
+      target_id TEXT,
+      details TEXT,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS transcripts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id TEXT NOT NULL,
@@ -144,6 +157,7 @@ function initSchema(sqlite: Database.Database) {
 
     CREATE INDEX IF NOT EXISTS idx_connections_employer ON connections(employer_id);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
     CREATE INDEX IF NOT EXISTS idx_transcripts_session ON transcripts(session_id, turn_number);
     CREATE INDEX IF NOT EXISTS idx_sessions_jd ON sessions(jd_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);

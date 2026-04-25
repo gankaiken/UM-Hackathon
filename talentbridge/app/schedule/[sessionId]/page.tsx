@@ -3,6 +3,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { motion } from 'framer-motion';
+import { getCsrfTokenFromCookie } from '@/lib/clientSecurity';
 
 interface ScheduleSession {
   candidateEmail: string;
@@ -53,7 +54,7 @@ export default function CandidateSchedulingPage({ params }: { params: Promise<{ 
     try {
       const res = await fetch(`/api/schedule/${sessionId}/confirm`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfTokenFromCookie() },
         body: JSON.stringify({ slot: selectedSlot }),
       });
       const data = await res.json();

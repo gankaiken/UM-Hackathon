@@ -100,6 +100,19 @@ export const agentLogs = sqliteTable('agent_logs', {
   createdAt: integer('created_at').notNull(),
 });
 
+export const auditLogs = sqliteTable('audit_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  actorType: text('actor_type').notNull(), // 'hr' | 'candidate' | 'system'
+  actorId: text('actor_id'),
+  action: text('action').notNull(),
+  status: text('status').notNull(), // 'success' | 'failure' | 'blocked'
+  ipAddress: text('ip_address'),
+  targetType: text('target_type'),
+  targetId: text('target_id'),
+  details: text('details'),
+  createdAt: integer('created_at').notNull(),
+});
+
 // ─── Employer Connections ──────────────────────────────────────────────────────
 // Secure server-side storage for OAuth tokens
 export const connections = sqliteTable('connections', {
@@ -141,5 +154,7 @@ export type Transcript = typeof transcripts.$inferSelect;
 export type NewTranscript = typeof transcripts.$inferInsert;
 export type AgentLog = typeof agentLogs.$inferSelect;
 export type NewAgentLog = typeof agentLogs.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
 export type Connection = typeof connections.$inferSelect;
 export type NewConnection = typeof connections.$inferInsert;

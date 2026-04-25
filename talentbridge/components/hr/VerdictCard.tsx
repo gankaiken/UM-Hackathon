@@ -6,6 +6,7 @@ import type { HrResponse, VerdictResult, SentinelData, StrategistResult } from '
 import type { Session, JdCache, Transcript, AgentLog } from '@/lib/db/schema';
 import type { OrchestrationState } from '@/lib/agents/integrationCoordinator';
 import { normalizeSentinelData } from '@/lib/sentinel';
+import { getCsrfTokenFromCookie } from '@/lib/clientSecurity';
 
 interface Props {
   session: Session;
@@ -70,7 +71,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
     try {
       const res = await fetch(`/api/hr/session/${session.id}/response`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfTokenFromCookie() },
         body: JSON.stringify({ response }),
       });
       const data = await res.json();
@@ -92,6 +93,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
     try {
       const res = await fetch(`/api/hr/session/${session.id}/schedule-preview`, {
         method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfTokenFromCookie() },
       });
       const data = await res.json();
       if (!res.ok) {
@@ -116,7 +118,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
     try {
       const res = await fetch(`/api/hr/session/${session.id}/resolve-dispute`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfTokenFromCookie() },
         body: JSON.stringify({ resolution }),
       });
       const data = await res.json();

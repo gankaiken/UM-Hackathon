@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { db } from './db';
 import { users, sessions, jdCache } from './db/schema';
 import { eq } from 'drizzle-orm';
+import { createCsrfToken, setCsrfCookie } from './csrf';
 
 export const HR_SESSION_COOKIE = 'talentbridge_hr_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -48,7 +49,10 @@ export function getHrUserFromRequest(req: NextRequest): HrSessionUser | null {
 export function requireHrUser(req: NextRequest): HrSessionUser | NextResponse {
   const user = getHrUserFromRequest(req);
   if (!user) {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const res = NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    clearHrSessionCookie(res);
+    setCsrfCookie(res, createCsrfToken());
+    return res;
   }
   return user;
 }
@@ -60,6 +64,7 @@ export function setHrSessionCookie(res: NextResponse, user: HrSessionUser) {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: SESSION_TTL_MS / 1000,
+    priority: 'high',
   });
 }
 
@@ -70,6 +75,7 @@ export function clearHrSessionCookie(res: NextResponse) {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: 0,
+    priority: 'high',
   });
 }
 

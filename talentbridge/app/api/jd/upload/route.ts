@@ -9,11 +9,15 @@ import { runDimensionQA } from '@/lib/agents/dimensionQA';
 import { v4 as uuid } from 'uuid';
 import type { JdUploadResponse, MapperResult } from '@/lib/types';
 import { requireHrUser } from '@/lib/hrAuth';
+import { getRequestIp, logAuditEvent } from '@/lib/security';
+import { requireCsrf } from '@/lib/csrf';
 
 export async function POST(req: NextRequest) {
   try {
     const user = requireHrUser(req);
     if (user instanceof NextResponse) return user;
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
 
     const { jdText } = await req.json();
 
@@ -64,6 +68,17 @@ export async function POST(req: NextRequest) {
       qaStatus: qaResult.status,
       interviewLink,
     };
+
+    await logAuditEvent({
+      actorType: 'hr',
+      actorId: user.id,
+      action: 'jd.upload',
+      status: 'success',
+      ipAddress: getRequestIp(req),
+      targetType: 'jd',
+      targetId: jdId,
+      details: { roleTitle: finalMapper.role_title },
+    });
 
     return NextResponse.json(response);
   } catch (error) {
