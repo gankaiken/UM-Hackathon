@@ -40,6 +40,28 @@ export async function GET(
       createdAt: t.createdAt,
     }));
 
+    const now = Date.now();
+    let { sessionLifecycleStatus, sessionExpiredAt, partialProfileCreatedAt } = session;
+
+    if (session.status === 'active' && (!sessionLifecycleStatus || sessionLifecycleStatus !== 'expired')) {
+      const lastActivityAt = dbTranscripts.length > 0 
+        ? dbTranscripts[dbTranscripts.length - 1].createdAt 
+        : session.createdAt;
+      
+      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+      if (now - lastActivityAt > SEVEN_DAYS) {
+        sessionLifecycleStatus = 'expired';
+        sessionExpiredAt = now;
+        partialProfileCreatedAt = now;
+        
+        await db.update(sessions).set({
+          sessionLifecycleStatus,
+          sessionExpiredAt,
+          partialProfileCreatedAt
+        }).where(eq(sessions.id, sessionId));
+      }
+    }
+
     const sessionState: SessionState = {
       sessionId: session.id,
       jdId: session.jdId,
@@ -56,6 +78,9 @@ export async function GET(
       moderationStatus: session.moderationStatus,
       moderationErrors: session.moderationErrors ? JSON.parse(session.moderationErrors) : null,
       moderationEscalatedAt: session.moderationEscalatedAt,
+      sessionLifecycleStatus,
+      sessionExpiredAt,
+      partialProfileCreatedAt,
       turnCount: session.turnCount,
       coverageMap: JSON.parse(session.coverageMap),
       sentinelData: normalizeSentinelData(JSON.parse(session.sentinelData)),

@@ -70,11 +70,13 @@ export interface StyleAnalysisResult {
   anomaly_detected: boolean;
   primary_anomaly_type: string | null;
   signal_breakdown: {
-    response_length_shift: number;    // 0 or -20
-    formality_shift: number;
-    language_register_shift: number;
-    personal_detail_density_shift: number;
-    colloquial_marker_retention: number;
+    scope_drift_penalty: number;
+    response_length_shift_penalty: number;
+    language_register_jump_penalty: number;
+    personal_detail_density_drop_penalty: number;
+    discourse_marker_emergence_penalty: number;
+    sentence_uniformity_penalty: number;
+    colloquial_marker_retention_penalty: number;
   };
   recommendation: 'CLEAN' | 'MINOR_VARIATION' | 'FLAG_TO_AUDITOR' | 'PASS_TO_AUDITOR_STRONG_FLAG';
 }
@@ -154,6 +156,9 @@ export interface SessionState {
   moderationStatus?: string | null;
   moderationErrors?: string[] | null;
   moderationEscalatedAt?: number | null;
+  sessionLifecycleStatus?: string | null;
+  sessionExpiredAt?: number | null;
+  partialProfileCreatedAt?: number | null;
   turnCount: number;
   coverageMap: CoverageMap;
   sentinelData: SentinelData;

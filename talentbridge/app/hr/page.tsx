@@ -17,12 +17,36 @@ export default async function HRDashboard() {
     .orderBy(desc(sessions.createdAt))
     .all();
 
-  const completed = allSessions.filter(s => s.session.verdict);
-  const active    = allSessions.filter(s => s.session.status === 'active');
   const now = getCurrentTimestamp();
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+  // Lazily derive expiration for pipeline
+  for (const item of allSessions) {
+    if (item.session.status === 'active' && (!item.session.sessionLifecycleStatus || item.session.sessionLifecycleStatus !== 'expired')) {
+      if (now - item.session.createdAt > SEVEN_DAYS) {
+        item.session.sessionLifecycleStatus = 'expired';
+        item.session.sessionExpiredAt = now;
+        item.session.partialProfileCreatedAt = now;
+        
+        // Fire-and-forget DB update safely within Server Component
+        db.update(sessions)
+          .set({ 
+            sessionLifecycleStatus: 'expired',
+            sessionExpiredAt: now,
+            partialProfileCreatedAt: now
+          })
+          .where(eq(sessions.id, item.session.id))
+          .run();
+      }
+    }
+  }
+
+  const completed = allSessions.filter(s => s.session.verdict);
+  const active    = allSessions.filter(s => s.session.status === 'active' && s.session.sessionLifecycleStatus !== 'expired');
+  const expired   = allSessions.filter(s => s.session.status === 'active' && s.session.sessionLifecycleStatus === 'expired');
 
   const reputation = calculateAggregateEmployerReputation(
-    allSessions.map(item => ({
+    completed.map(item => ({
       employerId: item.company,
       verdict: item.session.verdict,
       completedAt: item.session.completedAt,
@@ -189,4 +213,4 @@ export default async function HRDashboard() {
           ))}
         </div>
 
-<ClientPipeline completed={completed} /></div></div>); }
+<ClientPipeline completed={completed} active={active} expired={expired} /></div></div>); }

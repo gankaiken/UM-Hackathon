@@ -39,7 +39,15 @@ function getAverageVerdictScore(verdict: VerdictResult): number {
   );
 }
 
-export default function ClientPipeline({ completed }: { completed: CompletedSessionItem[] }) {
+export default function ClientPipeline({ 
+  completed, 
+  active = [], 
+  expired = [] 
+}: { 
+  completed: CompletedSessionItem[];
+  active?: CompletedSessionItem[];
+  expired?: CompletedSessionItem[];
+}) {
   const [filter, setFilter] = useState('All');
   const [filledRoles, setFilledRoles] = useState<Set<string>>(new Set());
   const [filling, setFilling] = useState<string | null>(null);
@@ -186,9 +194,21 @@ export default function ClientPipeline({ completed }: { completed: CompletedSess
       interviewMeetingLink,
       interviewScheduleNote,
     };
-  }).filter(item => item.verdict !== null);
+  }); // Removed the .filter(item => item.verdict !== null)
 
-  const filteredData = parsedCompleted.filter(item => filter === 'All' || item.triage.toUpperCase() === filter.toUpperCase());
+  const allCombined = [
+    ...parsedCompleted.map(item => ({ ...item, category: 'Completed' })).filter(item => item.verdict !== null),
+    ...active.map(item => ({ ...item, category: 'Active', verdict: null, avgScore: 0, isFlagged: false, triage: '', isOverdue: false, hrRespondedAt: null, hrResponse: null, interviewScheduledAt: null, interviewMeetingLink: null, interviewScheduleNote: null })),
+    ...expired.map(item => ({ ...item, category: 'Partial Profiles', verdict: null, avgScore: 0, isFlagged: false, triage: '', isOverdue: false, hrRespondedAt: null, hrResponse: null, interviewScheduledAt: null, interviewMeetingLink: null, interviewScheduleNote: null })),
+  ];
+
+  const filteredData = allCombined.filter(item => {
+    if (filter === 'All') return true;
+    if (filter === 'Active') return item.category === 'Active';
+    if (filter === 'Completed') return item.category === 'Completed';
+    if (filter === 'Partial Profiles') return item.category === 'Partial Profiles';
+    return item.triage.toUpperCase() === filter.toUpperCase();
+  });
 
   return (
     <>
@@ -388,7 +408,7 @@ export default function ClientPipeline({ completed }: { completed: CompletedSess
               All Candidates — Pipeline View
             </h2>
             <div style={{ fontSize: 13, color: '#475569', fontFamily: 'var(--font-body)' }}>
-              {parsedCompleted.length} total candidates routed through the current interview pipeline
+              {allCombined.length} total candidates routed through the current interview pipeline
             </div>
           </div>
 
@@ -396,7 +416,7 @@ export default function ClientPipeline({ completed }: { completed: CompletedSess
             display: 'flex', gap: 4,
             background: '#0F1117', padding: '4px', borderRadius: 10,
           }}>
-            {['All', 'GREEN', 'AMBER', 'RED'].map(value => (
+            {['All', 'Active', 'Completed', 'Partial Profiles'].map(value => (
               <button
                 key={value}
                 onClick={() => setFilter(value)}
@@ -404,11 +424,7 @@ export default function ClientPipeline({ completed }: { completed: CompletedSess
                   padding: '6px 14px', borderRadius: 7, fontSize: 12, border: 'none',
                   fontWeight: filter === value ? 700 : 500, cursor: 'pointer',
                   background: filter === value ? '#1E2433' : 'transparent',
-                  color: filter === value ? '#F9FAFB'
-                    : value === 'GREEN' ? '#10B981'
-                    : value === 'AMBER' ? '#F59E0B'
-                    : value === 'RED' ? '#EF4444'
-                    : '#64748B',
+                  color: filter === value ? '#F9FAFB' : '#64748B',
                   transition: 'all 0.15s ease',
                   fontFamily: 'var(--font-body)',
                 }}
@@ -439,8 +455,63 @@ export default function ClientPipeline({ completed }: { completed: CompletedSess
             </tr>
           </thead>
           <tbody>
-            {filteredData.map(({ session, roleTitle, verdict, avgScore, isFlagged, triage, isOverdue, hrResponse, hrRespondedAt, interviewScheduledAt, interviewMeetingLink }) => {
-              if (!verdict) return null;
+            {filteredData.map(({ session, roleTitle, category, verdict, avgScore, isFlagged, triage, isOverdue, hrResponse, hrRespondedAt, interviewScheduledAt, interviewMeetingLink }) => {
+              // Different render path for non-completed
+              if (category !== 'Completed') {
+                return (
+                  <tr key={session.id} className="hr-table-row" style={{ borderBottom: '1px solid #1E2433' }}>
+                    <td style={{ padding: '20px', color: '#F9FAFB', fontSize: 14, fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 34, height: 34, borderRadius: '50%', background: '#1E2433',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#F9FAFB', fontSize: 13, fontWeight: 700,
+                        }}>
+                          {(session.candidateName || 'U')[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div>{session.candidateName || 'Unknown Candidate'}</div>
+                          <div style={{ fontSize: 12, color: '#64748B', fontWeight: 500, marginTop: 2 }}>{session.candidateEmail || 'No email provided'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '20px', color: '#94A3B8', fontSize: 14 }}>{roleTitle || '—'}</td>
+                    <td style={{ padding: '20px' }}>
+                      <div style={{
+                        display: 'inline-flex', padding: '4px 10px', borderRadius: 8,
+                        fontSize: 11, fontWeight: 700,
+                        background: category === 'Active' ? 'rgba(37,99,235,0.1)' : 'rgba(100,116,139,0.1)',
+                        color: category === 'Active' ? '#60A5FA' : '#94A3B8',
+                        border: `1px solid ${category === 'Active' ? 'rgba(37,99,235,0.2)' : 'rgba(100,116,139,0.2)'}`
+                      }}>
+                        {category === 'Active' ? 'In Progress' : 'Incomplete'}
+                      </div>
+                    </td>
+                    <td style={{ padding: '20px' }}>—</td>
+                    <td style={{ padding: '20px' }}>
+                      {category === 'Partial Profiles' ? (
+                        <div style={{ color: '#94A3B8', fontSize: 13 }}>Partial Profile / Expired</div>
+                      ) : (
+                        <div style={{ color: '#94A3B8', fontSize: 13 }}>Pending Completion</div>
+                      )}
+                    </td>
+                    <td style={{ padding: '20px' }}>
+                      {category === 'Partial Profiles' && (
+                        <Link
+                          href={`/hr/session/${session.id}`}
+                          style={{
+                            display: 'inline-block', color: '#F9FAFB', fontSize: 13, fontWeight: 600,
+                            padding: '6px 14px', borderRadius: 8, background: '#1E2433',
+                            border: '1px solid #334155', textDecoration: 'none'
+                          }}
+                        >
+                          View Partial
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                );
+              }
 
               const triageMeta = {
                 GREEN: { color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
@@ -542,9 +613,13 @@ export default function ClientPipeline({ completed }: { completed: CompletedSess
                           Interview scheduled preview ready
                         </span>
                       ) : null}
-                      {session.disputeRequestedAt ? (
-                        <span style={{ fontSize: 10, color: '#F59E0B', fontFamily: 'var(--font-body)' }}>
-                          Candidate dispute pending review
+                      {session.disputeStatus === 'requested' ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#D97706', background: '#FEF3C7', border: '1px solid #FDE68A', padding: '4px 8px', borderRadius: 6, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                          Dispute Requested
+                        </span>
+                      ) : session.disputeStatus === 'resolved' ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', background: '#F1F5F9', border: '1px solid #E2E8F0', padding: '4px 8px', borderRadius: 6, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                          Dispute Resolved
                         </span>
                       ) : null}
                       {hrRespondedAt ? (

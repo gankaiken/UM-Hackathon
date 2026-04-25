@@ -8,7 +8,7 @@ import { useSentinelStore } from '@/store/sentinelStore';
 import type { TranscriptEntry, SentinelData } from '@/lib/types';
 import { buildMessageId, getCurrentTimestamp } from '@/lib/utils/runtime';
 
-type ChatState = 'loading' | 'entry' | 'chatting' | 'closing' | 'verdict_pending' | 'done';
+type ChatState = 'loading' | 'entry' | 'chatting' | 'closing' | 'verdict_pending' | 'done' | 'expired';
 interface Message {
   id: string;
   role: 'inquisitor' | 'candidate';
@@ -23,6 +23,7 @@ interface SessionPayload {
   coverageMap?: Record<string, string>;
   sentinelData?: Partial<SentinelData>;
   transcript: Array<TranscriptEntry & { strategistJson?: { reasoning?: string } }>;
+  sessionLifecycleStatus?: string | null;
   status: string;
 }
 
@@ -206,6 +207,7 @@ export default function InterviewPage() {
         }
 
         if (sessionData.status === 'completed') { router.push(`/result/${sessionId}`); return; }
+        if (sessionData.sessionLifecycleStatus === 'expired') { setState('expired'); return; }
         if (sessionData.candidateName && sessionData.transcript.length > 0) {
           const restored: Message[] = sessionData.transcript.map((t: TranscriptEntry) => ({
             id: `${t.role}-${t.turnNumber}`, role: t.role, content: t.content,
@@ -259,6 +261,38 @@ export default function InterviewPage() {
           <p style={{ color: '#64748B', fontSize: 16, lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
             The <strong>Auditor Agent</strong> is currently scoring your session across all competency dimensions. This usually takes <br /> 20-30 seconds.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Expired / Partial Profile ────────────────────────────────────────────
+  if (state === 'expired') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', padding: 24 }}>
+        <div style={{ textAlign: 'center', maxWidth: 480, background: '#FFFFFF', border: '1.5px solid #E2E8F0', borderRadius: 24, padding: 40 }} className="fade-in">
+          <div style={{ 
+            width: 64, height: 64, borderRadius: 16, background: '#F1F5F9', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            margin: '0 auto 24px', fontSize: 28 
+          }}>
+            📁
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>
+            Partial Profile Saved
+          </h2>
+          <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.6, fontFamily: 'var(--font-body)', marginBottom: 24 }}>
+            It looks like this interview has been inactive for over 7 days. We have safely saved your progress as a <strong>Partial Profile</strong> for the employer to review.
+          </p>
+          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '16px', borderRadius: 12, textAlign: 'left', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 18 }}>✓</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#065F46', marginBottom: 4 }}>No Action Needed</div>
+              <div style={{ fontSize: 12, color: '#047857', lineHeight: 1.5 }}>
+                Your existing responses have been successfully submitted. You may close this page.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
