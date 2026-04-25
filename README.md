@@ -1,3 +1,6 @@
+# [Pitching Video]() 
+
+
 # TalentBridge AI — Authentic Talent Verification & Closed-Loop Talent Hub
 ### Version 11.1 | Final Architecture Specification (7-Agent Agentic Pipeline)
 
