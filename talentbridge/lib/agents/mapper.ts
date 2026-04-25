@@ -5,6 +5,8 @@
 import { zhipuJson } from '../zhipu';
 import { mockMapper } from './mock';
 import type { MapperResult } from '../types';
+import { env } from '../env';
+import { executeAgent, logMockUsage } from './agentUtils';
 
 const MAPPER_SYSTEM_PROMPT = `You are the Mapper agent for TalentBridge AI, a hiring intelligence system.
 
@@ -29,17 +31,20 @@ Output schema:
 
 export async function runMapper(jdText: string): Promise<MapperResult> {
   // Use mock if no API key
-  if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
-    console.log('[Mapper] Using mock (no API key)');
+  if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
+    logMockUsage('Mapper');
     return mockMapper(jdText);
   }
 
-  return await zhipuJson<MapperResult>({
-    messages: [
-      { role: 'system', content: MAPPER_SYSTEM_PROMPT },
-      { role: 'user', content: `Here is the job description:\n\n${jdText}` },
-    ],
-    temperature: 0.3,
-    max_tokens: 1024,
-  });
+  return await executeAgent(
+    () => zhipuJson<MapperResult>({
+      messages: [
+        { role: 'system', content: MAPPER_SYSTEM_PROMPT },
+        { role: 'user', content: `Here is the job description:\n\n${jdText}` },
+      ],
+      temperature: 0.3,
+      max_tokens: 1024,
+    }),
+    { agentName: 'Mapper' }
+  );
 }

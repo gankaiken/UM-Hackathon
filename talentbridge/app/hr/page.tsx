@@ -7,6 +7,7 @@ import { getCurrentTimestamp } from '@/lib/utils/runtime';
 import { calculateAggregateEmployerReputation } from '@/lib/hrReputation';
 
 import ClientPipeline from './ClientPipeline';
+import ConnectionManager from '@/components/hr/ConnectionManager';
 export const dynamic = 'force-dynamic';
 
 export default async function HRDashboard() {
@@ -137,80 +138,87 @@ export default async function HRDashboard() {
         </div>
 
         {/* ── KPI CARDS ──────────────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
-          {[
-            {
-              value: completed.length.toString(),
-              label: 'Total Verdicts',
-              sub: `+${thisMonthCount} this month`,
-              subColor: '#10B981',
-              icon: '📊',
-              tooltip: 'Number of candidates fully processed by the Auditor'
-            },
-            {
-              value: responseRate === null ? 'Grace' : `${responseRate}%`,
-              label: 'Response Rate (48hr)',
-              sub: reputation.active ? 'Based on real HR responses' : `${reputation.totalCompletedVerdicts}/5 verdicts before scoring`,
-              subColor: reputation.active ? reputationColor : '#60A5FA',
-              icon: '⚡',
-              tooltip: 'Percentage of released verdict cards that received an HR response within 48 hours'
-            },
-            {
-              value: ghostingEvents.toString(),
-              label: 'Overdue Responses',
-              sub: reputation.active ? 'No HR response after 48h' : 'Grace period active',
-              subColor: reputation.overdueGhostingEvents > 0 ? '#F59E0B' : '#10B981',
-              icon: '🛡',
-              tooltip: 'Completed verdict cards without HR response after 48 hours'
-            },
-            {
-              value: reputation.score === null ? '--' : reputation.score.toString(),
-              label: 'HR Reputation',
-              sub: reputationLabel,
-              subColor: reputationColor,
-              icon: '⏱',
-              tooltip: 'Private operational metric derived from completed verdict cards and HR response timing'
-            },
-          ].map((kpi, i) => (
-            <div
-              key={i}
-              title={kpi.tooltip}
-              className="hr-kpi-card"
-              style={{
-                background: '#141820',
-                border: '1.5px solid #1E2433',
-                borderRadius: 20,
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 0,
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <div style={{
-                fontSize: 24, marginBottom: 12, lineHeight: 1,
-                filter: 'grayscale(20%)',
-              }}>
-                {kpi.icon}
+        <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 16, marginBottom: 32 }}>
+          <ConnectionManager employerId="default" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            {[
+              {
+                value: completed.length.toString(),
+                label: 'Total Verdicts',
+                sub: `+${thisMonthCount} this month`,
+                subColor: '#10B981',
+                icon: '📊',
+                tooltip: 'Number of candidates fully processed by the Auditor'
+              },
+              {
+                value: responseRate === null ? 'Grace' : `${responseRate}%`,
+                label: 'Response Rate (48hr)',
+                sub: reputation.active ? 'Based on real HR responses' : `${reputation.totalCompletedVerdicts}/5 verdicts before scoring`,
+                subColor: reputation.active ? reputationColor : '#60A5FA',
+                icon: '⚡',
+                tooltip: 'Percentage of released verdict cards that received an HR response within 48 hours'
+              },
+              {
+                value: ghostingEvents.toString(),
+                label: 'Overdue Responses',
+                sub: reputation.active ? 'No HR response after 48h' : 'Grace period active',
+                subColor: reputation.overdueGhostingEvents > 0 ? '#F59E0B' : '#10B981',
+                icon: '🛡',
+                tooltip: 'Completed verdict cards without HR response after 48 hours'
+              },
+              {
+                value: reputation.score === null ? '--' : reputation.score.toString(),
+                label: 'HR Reputation',
+                sub: reputationLabel,
+                subColor: reputationColor,
+                icon: '⏱',
+                tooltip: 'Private operational metric derived from completed verdict cards and HR response timing'
+              },
+            ].map((kpi, i) => (
+              <div
+                key={i}
+                title={kpi.tooltip}
+                className="hr-kpi-card"
+                style={{
+                  background: '#141820',
+                  border: '1.5px solid #1E2433',
+                  borderRadius: 20,
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{
+                  fontSize: 24, marginBottom: 12, lineHeight: 1,
+                  filter: 'grayscale(20%)',
+                }}>
+                  {kpi.icon}
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 38, fontWeight: 800, lineHeight: 1,
+                  letterSpacing: '-1.5px', color: '#F9FAFB', marginBottom: 8,
+                }}>
+                  {kpi.value}
+                </div>
+                <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, fontFamily: 'var(--font-body)' }}>
+                  {kpi.label}
+                </div>
+                <div style={{
+                  fontSize: 12, fontWeight: 600, color: kpi.subColor,
+                  fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  {kpi.sub}
+                </div>
               </div>
-              <div style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 38, fontWeight: 800, lineHeight: 1,
-                letterSpacing: '-1.5px', color: '#F9FAFB', marginBottom: 8,
-              }}>
-                {kpi.value}
-              </div>
-              <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, fontFamily: 'var(--font-body)' }}>
-                {kpi.label}
-              </div>
-              <div style={{
-                fontSize: 12, fontWeight: 600, color: kpi.subColor,
-                fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 4,
-              }}>
-                {kpi.sub}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-<ClientPipeline completed={completed} active={active} expired={expired} /></div></div>); }
+        <ClientPipeline completed={completed} active={active} expired={expired} />
+      </div>
+    </div>
+  );
+}

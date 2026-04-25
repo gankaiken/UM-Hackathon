@@ -5,6 +5,8 @@
 import { zhipuJson } from '../zhipu';
 import { mockStyleAnalyzer } from './mock';
 import type { StyleAnalysisResult, TranscriptEntry } from '../types';
+import { env } from '../env';
+import { executeAgent, logMockUsage } from './agentUtils';
 
 export async function runLanguageStyleAnalyzer(
   transcript: TranscriptEntry[]
@@ -14,28 +16,31 @@ export async function runLanguageStyleAnalyzer(
   const earlyHalf = candidateTurns.slice(0, mid).map(t => t.content).join('\n');
   const lateHalf = candidateTurns.slice(mid).map(t => t.content).join('\n');
 
-  if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
-    console.log('[LanguageStyleAnalyzer] Using mock (no API key)');
+  if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
+    logMockUsage('LanguageStyleAnalyzer');
     return mockStyleAnalyzer(earlyHalf + '\n---\n' + lateHalf);
   }
 
-  return await zhipuJson<StyleAnalysisResult>({
-    messages: [
-      { role: 'system', content: STYLE_ANALYZER_PROMPT },
-      {
-        role: 'user',
-        content: `EARLY HALF (first ${mid} responses):
+  return await executeAgent(
+    () => zhipuJson<StyleAnalysisResult>({
+      messages: [
+        { role: 'system', content: STYLE_ANALYZER_PROMPT },
+        {
+          role: 'user',
+          content: `EARLY HALF (first ${mid} responses):
 ${earlyHalf}
 
 LATE HALF (remaining ${candidateTurns.length - mid} responses):
 ${lateHalf}
 
 Analyze for style discontinuity and output the JSON verdict.`,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 1024,
-  });
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 1024,
+    }),
+    { agentName: 'LanguageStyleAnalyzer' }
+  );
 }
 
 const STYLE_ANALYZER_PROMPT = `You are the Language Style Analyzer for TalentBridge AI.

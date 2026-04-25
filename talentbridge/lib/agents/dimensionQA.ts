@@ -4,6 +4,8 @@
 import { zhipuJson } from '../zhipu';
 import { mockDimensionQA } from './mock';
 import type { MapperResult, DimensionQAResult } from '../types';
+import { env } from '../env';
+import { executeAgent, logMockUsage } from './agentUtils';
 
 const QA_SYSTEM_PROMPT = `You are the Dimension QA Agent for TalentBridge AI.
 
@@ -36,24 +38,25 @@ export async function runDimensionQA(
   jdText: string,
   isRetry: boolean = false
 ): Promise<DimensionQAResult> {
-  if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
-    console.log('[DimensionQA] Using mock (no API key)');
+  if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
+    logMockUsage('DimensionQA');
     return mockDimensionQA(mapper);
   }
 
-  const result = await zhipuJson<DimensionQAResult>({
-    messages: [
-      { role: 'system', content: QA_SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `Original JD:\n${jdText}\n\nMapper output to validate:\n${JSON.stringify(mapper, null, 2)}${
-          isRetry ? '\n\nNote: This is a retry — if there are still issues, output PASS_WITH_WARNING.' : ''
-        }`,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 512,
-  });
-
-  return result;
+  return await executeAgent(
+    () => zhipuJson<DimensionQAResult>({
+      messages: [
+        { role: 'system', content: QA_SYSTEM_PROMPT },
+        {
+          role: 'user',
+          content: `Original JD:\n${jdText}\n\nMapper output to validate:\n${JSON.stringify(mapper, null, 2)}${
+            isRetry ? '\n\nNote: This is a retry — if there are still issues, output PASS_WITH_WARNING.' : ''
+          }`,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 512,
+    }),
+    { agentName: 'DimensionQA' }
+  );
 }

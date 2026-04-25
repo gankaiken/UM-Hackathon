@@ -6,6 +6,10 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import path from 'path';
+import { validateCoreEnv } from '../env';
+
+// Validate core engine requirements on boot
+validateCoreEnv();
 
 // ── Database file location ────────────────────────────────────────────────────
 // We store the SQLite file at the project root. Vercel deployments mount an
@@ -89,7 +93,21 @@ function initSchema(sqlite: Database.Database) {
       moderation_escalated_at INTEGER,
       session_lifecycle_status TEXT,
       session_expired_at INTEGER,
-      partial_profile_created_at INTEGER
+      partial_profile_created_at INTEGER,
+      orchestration_state TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT,
+      agent_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      latency INTEGER,
+      input_summary TEXT,
+      output_summary TEXT,
+      tokens INTEGER,
+      error_message TEXT,
+      created_at INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS transcripts (
@@ -103,6 +121,20 @@ function initSchema(sqlite: Database.Database) {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS connections (
+      id TEXT PRIMARY KEY,
+      employer_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      access_token TEXT NOT NULL,
+      refresh_token TEXT,
+      expires_at INTEGER,
+      scope TEXT,
+      metadata TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_connections_employer ON connections(employer_id);
     CREATE INDEX IF NOT EXISTS idx_transcripts_session ON transcripts(session_id, turn_number);
     CREATE INDEX IF NOT EXISTS idx_sessions_jd ON sessions(jd_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
@@ -111,6 +143,7 @@ function initSchema(sqlite: Database.Database) {
   ensureTableColumns(sqlite, 'jd_cache', [
     { name: 'role_filled', definition: 'INTEGER NOT NULL DEFAULT 0' },
     { name: 'role_filled_at', definition: 'INTEGER' },
+    { name: 'timeslots', definition: 'TEXT' },
   ]);
 
   ensureTableColumns(sqlite, 'sessions', [
@@ -139,6 +172,8 @@ function initSchema(sqlite: Database.Database) {
     { name: 'session_lifecycle_status', definition: 'TEXT' },
     { name: 'session_expired_at', definition: 'INTEGER' },
     { name: 'partial_profile_created_at', definition: 'INTEGER' },
+    { name: 'orchestration_state', definition: 'TEXT' },
+    { name: 'scheduled_slot', definition: 'TEXT' },
   ]);
 }
 
