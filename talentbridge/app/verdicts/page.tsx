@@ -283,7 +283,7 @@ export default async function VerdictsPage() {
                           return (
                             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <span style={{ fontSize: 12, color: '#6B7280', width: 140, flexShrink: 0, fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>
-                                {(typeof dim === 'object' && dim.label) ? dim.label : key}
+                                {(typeof dim === 'object' && dim !== null && 'label' in dim && typeof dim.label === 'string') ? dim.label : key}
                               </span>
                               <div style={{ flex: 1, background: '#F3F4F6', borderRadius: 4, height: 5, overflow: 'hidden' }}>
                                 <div style={{ width: `${score}%`, height: '100%', background: barColor, borderRadius: 4 }} />

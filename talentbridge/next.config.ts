@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3"],
   // Silence Turbopack warning (no custom webpack config needed for our setup)
   turbopack: {},
+  devIndicators: {
+    appIsrStatus: false,
+    buildActivity: false,
+  },
 };
 
 export default nextConfig;

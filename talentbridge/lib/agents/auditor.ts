@@ -22,10 +22,15 @@ export async function runAuditor(
     .join('\n\n');
 
   const systemPrompt = buildAuditorPrompt(mapper, retryFeedback);
+  
+  // Hard-coded override: if large-paste AI detection fired, force strong_flag in prompt
+  const hardCodedWarning = sentinelData.ai_paste_detected
+    ? `\n\nCRITICAL OVERRIDE: The Sentinel has detected a single paste of ${sentinelData.ai_paste_char_count} characters during the interview. This exceeds the 150-character threshold and is classified as AI-generated content with high certainty. You MUST set authenticity_status to "strong_flag" and human_review_required to true regardless of other signals.`
+    : '';
 
   return await zhipuJson<VerdictResult>({
     messages: [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: systemPrompt + hardCodedWarning },
       {
         role: 'user',
         content: `FULL TRANSCRIPT:

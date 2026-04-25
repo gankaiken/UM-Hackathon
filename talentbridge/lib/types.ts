@@ -49,6 +49,9 @@ export interface SentinelData {
   total_away_duration_seconds: number;
   paste_events: number;
   tab_switches: number;
+  // Hard-coded AI detection: large paste (>150 chars) auto-flagged
+  ai_paste_detected?: boolean;
+  ai_paste_char_count?: number;
 }
 
 export type SentinelStage = 'clean' | 'stage_1_alert' | 'stage_2_alert';

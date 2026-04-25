@@ -8,8 +8,8 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function JobApplyPage({ params }: { params: { id: string } }) {
-  const jdId = params.id;
+export default async function JobApplyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: jdId } = await params;
   const job = await db.select().from(jdCache).where(eq(jdCache.id, jdId)).get();
 
   if (!job) {

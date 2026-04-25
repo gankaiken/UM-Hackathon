@@ -5,11 +5,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import NotificationBell from './NotificationBell';
 
 export default function GlobalNav() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+
+  const showToast = () => {
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 3000);
+  };
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 12);
@@ -139,6 +146,18 @@ export default function GlobalNav() {
           ) : (
             <>
               <NavItem href="/jobs" label="Job search" active={isActive('/jobs')} />
+              <button 
+                onClick={(e) => { e.preventDefault(); showToast(); }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '8px 18px',
+                  borderRadius: 10, fontSize: 14, fontWeight: 500, color: '#4B5568',
+                  fontFamily: 'var(--font-body)', position: 'relative', transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#0A0C12'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4B5568'; }}
+              >
+                My applications
+              </button>
               <NavItem href="/how-it-works" label="How it works" active={isActive('/how-it-works')} />
             </>
           )}
@@ -146,6 +165,9 @@ export default function GlobalNav() {
 
         {/* ── Right side Actions ──────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          
+          {/* Notification Bell */}
+          <NotificationBell isDark={isEmployerMode} />
           
           {/* Portrait Switcher — JobStreet Style */}
           <Link
@@ -199,6 +221,35 @@ export default function GlobalNav() {
             </Link>
           )}
         </div>
+      </div>
+
+      {/* ── Toast Notification ── */}
+      <div style={{
+        position: 'fixed',
+        bottom: toastVisible ? 40 : 20,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        opacity: toastVisible ? 1 : 0,
+        visibility: toastVisible ? 'visible' : 'hidden',
+        background: '#0A0C12',
+        color: '#FFFFFF',
+        padding: '12px 24px',
+        borderRadius: 12,
+        fontSize: 14,
+        fontFamily: 'var(--font-body)',
+        fontWeight: 500,
+        boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        zIndex: 1000,
+      }}>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M12 8v4l3 3" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        My Applications portal is coming in Q3!
       </div>
     </nav>
   );

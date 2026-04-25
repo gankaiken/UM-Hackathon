@@ -2,12 +2,16 @@
 // components/candidate/SentinelTracker.tsx
 // Pure JS behavioral monitoring — zero AI tokens.
 // Runs as a background effect, posts events to Zustand store.
+// Hard-coded rule: paste > 150 chars in textarea → auto-flag as AI-generated.
 
 import { useEffect, useRef } from 'react';
 import { useSentinelStore } from '@/store/sentinelStore';
 
+// Threshold: pastes longer than this are auto-flagged as AI-generated content
+const AI_PASTE_CHAR_THRESHOLD = 150;
+
 export default function SentinelTracker() {
-  const { recordFocusLoss, recordPaste, recordTabSwitch } = useSentinelStore();
+  const { recordFocusLoss, recordPaste, recordTabSwitch, recordAiPaste } = useSentinelStore();
   const focusLostAtRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -26,12 +30,20 @@ export default function SentinelTracker() {
       }
     };
 
-    // ── Track paste events ───────────────────────────────────────────────
+    // ── Track paste events with AI auto-detection ────────────────────────
     const handlePaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
-      // Only track pastes in the answer textarea
       if (target.tagName === 'TEXTAREA' || target.id === 'answer-input') {
         recordPaste();
+
+        // Hard-coded rule: large paste = AI-generated
+        const pastedText = e.clipboardData?.getData('text') ?? '';
+        if (pastedText.length >= AI_PASTE_CHAR_THRESHOLD) {
+          console.warn(
+            `[Sentinel] HARD RULE: Paste of ${pastedText.length} chars exceeds threshold (${AI_PASTE_CHAR_THRESHOLD}). Auto-flagging as AI-generated.`
+          );
+          recordAiPaste(pastedText.length);
+        }
       }
     };
 
@@ -60,7 +72,7 @@ export default function SentinelTracker() {
       document.removeEventListener('paste', handlePaste);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [recordFocusLoss, recordPaste, recordTabSwitch]);
+  }, [recordFocusLoss, recordPaste, recordTabSwitch, recordAiPaste]);
 
   // Invisible — no DOM output
   return null;

@@ -13,6 +13,9 @@ export const jdCache = sqliteTable('jd_cache', {
   qaStatus: text('qa_status').notNull().default('pending'), // 'PASS' | 'PASS_WITH_WARNING' | 'pending'
   qaOutput: text('qa_output'),                    // JSON: DimensionQAResult (nullable)
   interviewLink: text('interview_link').notNull().default(''),
+  // Role lifecycle: HR marks role filled → notifies all pending candidates
+  roleFilled: integer('role_filled', { mode: 'boolean' }).notNull().default(false),
+  roleFilledAt: integer('role_filled_at'),
   createdAt: integer('created_at').notNull(),
 });
 
@@ -22,7 +25,17 @@ export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),                    // UUID — this IS the unique link token
   jdId: text('jd_id').notNull(),                  // FK → jd_cache.id
   candidateName: text('candidate_name').notNull().default(''),
+  // Extended candidate profile (step 2 of apply form)
+  candidateEmail: text('candidate_email').default(''),
+  candidatePhone: text('candidate_phone').default(''),
+  candidateLinkedin: text('candidate_linkedin').default(''),
+  candidatePortfolio: text('candidate_portfolio').default(''),
+  candidateBio: text('candidate_bio').default(''),
+  resumeFileName: text('resume_file_name').default(''),
   status: text('status').notNull().default('active'), // 'active' | 'completed' | 'abandoned'
+  // Lifecycle status tracking
+  foundJob: integer('found_job', { mode: 'boolean' }).notNull().default(false),
+  foundJobAt: integer('found_job_at'),
   turnCount: integer('turn_count').notNull().default(0),
   // Live state: Strategist coverage map, updated each turn
   coverageMap: text('coverage_map').notNull().default('{}'), // JSON
@@ -37,6 +50,9 @@ export const sessions = sqliteTable('sessions', {
   verdictValid: integer('verdict_valid', { mode: 'boolean' }),
   createdAt: integer('created_at').notNull(),
   completedAt: integer('completed_at'),
+  // HR response tracking (for Reputation Score + ghosting detection)
+  hrRespondedAt: integer('hr_responded_at'),
+  hrResponse: text('hr_response'),               // 'offer' | 'reject' | 'hold' | null
 });
 
 // ─── Transcripts ───────────────────────────────────────────────────────────────

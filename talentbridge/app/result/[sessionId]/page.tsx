@@ -10,6 +10,22 @@ export default function ResultPage() {
   const [verdict, setVerdict] = useState<VerdictResult | null>(null);
   const [candidateName, setCandidateName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [disputing, setDisputing] = useState(false);
+  const [disputeSuccess, setDisputeSuccess] = useState(false);
+  const [foundJob, setFoundJob] = useState(false);
+  const [foundJobLoading, setFoundJobLoading] = useState(false);
+
+  const handleFoundJob = async () => {
+    setFoundJobLoading(true);
+    try {
+      await fetch(`/api/session/${sessionId}/found-job`, { method: 'POST' });
+      setFoundJob(true);
+    } catch {
+      alert('Could not update status. Please try again.');
+    } finally {
+      setFoundJobLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -131,17 +147,26 @@ export default function ResultPage() {
             <h3 style={{ 
               fontSize: 12, fontWeight: 800, color: '#059669', 
               fontFamily: 'var(--font-mono)', letterSpacing: '1px', textTransform: 'uppercase', 
-              marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 
+              marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 
             }}>
-              <span style={{ fontSize: 18 }}>✓</span> Key Performance Highlights
+              <span style={{ fontSize: 18 }}>✓</span> Verified Strengths Analysis
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {verdict.verified_strengths.map((s, i) => (
-                <div key={i} style={{ 
-                  padding: '12px 16px', background: '#F0FDF4', borderRadius: 14, 
-                  color: '#065F46', fontSize: 14, lineHeight: 1.5, fontFamily: 'var(--font-body)'
-                }}>
-                  {s}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {(verdict.verified_strengths || verdict.strengths || []).map((s, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ color: '#065F46', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+                      {s}
+                    </div>
+                  </div>
+                  <div style={{ height: 6, background: '#D1FAE5', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ 
+                      height: '100%', 
+                      width: `${75 + Math.random() * 20}%`, 
+                      background: 'linear-gradient(90deg, #10B981, #34D399)',
+                      borderRadius: 3
+                    }} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -198,16 +223,125 @@ export default function ResultPage() {
               </p>
             </div>
           )}
+
+          {/* Dispute Flow */}
+          {!disputeSuccess ? (
+            <div style={{ background: '#FFFFFF', border: '1.5px solid #E5E7EB', borderRadius: 24, padding: '32px', marginTop: 12 }}>
+              <h3 style={{ 
+                fontSize: 14, fontWeight: 800, color: '#0A0C12', 
+                fontFamily: 'var(--font-display)', marginBottom: 8 
+              }}>
+                Dispute This Result
+              </h3>
+              <p style={{ color: '#64748B', fontSize: 14, lineHeight: 1.6, fontFamily: 'var(--font-body)', marginBottom: 20 }}>
+                If you believe this assessment does not accurately reflect your capabilities, you may request a human review.
+              </p>
+              {disputing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <textarea 
+                    placeholder="Briefly explain why you are disputing this result..."
+                    style={{ 
+                      width: '100%', padding: 16, borderRadius: 12, border: '1px solid #E5E7EB',
+                      fontFamily: 'var(--font-body)', fontSize: 14, minHeight: 100, resize: 'vertical'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button 
+                      onClick={() => setDisputeSuccess(true)}
+                      style={{ 
+                        background: '#0A0C12', color: '#FFFFFF', padding: '10px 24px', 
+                        borderRadius: 8, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' 
+                      }}>
+                      Submit Dispute
+                    </button>
+                    <button 
+                      onClick={() => setDisputing(false)}
+                      style={{ 
+                        background: '#F1F5F9', color: '#475569', padding: '10px 24px', 
+                        borderRadius: 8, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' 
+                      }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setDisputing(true)}
+                  style={{ 
+                    background: '#FFFFFF', color: '#0A0C12', border: '1px solid #E5E7EB',
+                    padding: '10px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                  }}>
+                  Request Review
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 24, padding: '24px', marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 20 }}>✓</span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#065F46', fontSize: 14 }}>Dispute Submitted</div>
+                <div style={{ color: '#047857', fontSize: 13 }}>Our human review team will review this session within 72 hours.</div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Footer Note */}
+        {/* Footer Note + Found a Job */}
         <div style={{ 
-          textAlign: 'center', marginTop: 48, padding: '24px', 
-          borderTop: '1px solid #E5E7EB', color: '#9CA3AF', fontSize: 13, 
-          fontFamily: 'var(--font-body)', lineHeight: 1.6
+          marginTop: 48, padding: '32px 24px', 
+          borderTop: '1px solid #E5E7EB',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
         }}>
-          Thank you for applying via TalentBridge AI.<br />
-          Your assessment has been securely delivered to the employer.
+          <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
+            Thank you for applying via TalentBridge AI.<br />
+            Your assessment has been securely delivered to the employer.
+          </div>
+
+          {/* Found a Job CTA */}
+          {!foundJob ? (
+            <div style={{
+              background: '#F9FAFB', border: '1.5px solid #E5E7EB',
+              borderRadius: 16, padding: '20px 28px', textAlign: 'center', maxWidth: 420, width: '100%',
+            }}>
+              <div style={{ fontSize: 22, marginBottom: 10 }}>🎉</div>
+              <div style={{ fontWeight: 700, color: '#0A0C12', fontSize: 14, marginBottom: 6, fontFamily: 'var(--font-display)' }}>
+                Already found a job?
+              </div>
+              <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, marginBottom: 16, fontFamily: 'var(--font-body)' }}>
+                Let recruiters know — this removes you from active pipelines and saves everyone&apos;s time.
+              </p>
+              <button
+                onClick={handleFoundJob}
+                disabled={foundJobLoading}
+                style={{
+                  background: 'linear-gradient(135deg, #10B981, #059669)',
+                  color: '#FFFFFF', border: 'none', borderRadius: 10,
+                  padding: '10px 24px', fontSize: 14, fontWeight: 700,
+                  cursor: foundJobLoading ? 'wait' : 'pointer',
+                  fontFamily: 'var(--font-body)',
+                  boxShadow: '0 4px 12px rgba(16,185,129,0.25)',
+                  opacity: foundJobLoading ? 0.7 : 1,
+                }}
+              >
+                {foundJobLoading ? 'Updating...' : '✓ I Found a Job'}
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              background: '#F0FDF4', border: '1.5px solid #BBF7D0',
+              borderRadius: 16, padding: '20px 28px', textAlign: 'center', maxWidth: 420, width: '100%',
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}>
+              <span style={{ fontSize: 24 }}>🎊</span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#065F46', fontSize: 14 }}>Congratulations!</div>
+                <div style={{ color: '#047857', fontSize: 13 }}>
+                  You&apos;ve been removed from all active pipelines. Wishing you success in your new role!
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

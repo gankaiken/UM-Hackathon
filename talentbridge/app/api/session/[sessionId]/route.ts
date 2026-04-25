@@ -9,10 +9,10 @@ import type { SessionState, TranscriptEntry } from '@/lib/types';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const { sessionId } = params;
+    const { sessionId } = await params;
 
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session) {

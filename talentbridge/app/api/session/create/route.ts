@@ -10,16 +10,29 @@ import type { CoverageMap, SentinelData } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   try {
-    const { jdId, candidateName } = await req.json();
+    const {
+      jdId,
+      candidateName,
+      // Extended profile fields from step 2 of apply form
+      candidateEmail = '',
+      candidatePhone = '',
+      candidateLinkedin = '',
+      candidatePortfolio = '',
+      candidateBio = '',
+      resumeFileName = '',
+    } = await req.json();
 
     if (!jdId || !candidateName) {
       return NextResponse.json({ error: 'jdId and candidateName are required' }, { status: 400 });
     }
 
-    // Check JD exists
+    // Check JD exists and is not already filled
     const jd = await db.select().from(jdCache).where(eq(jdCache.id, jdId)).get();
     if (!jd) {
       return NextResponse.json({ error: 'JD not found' }, { status: 404 });
+    }
+    if (jd.roleFilled) {
+      return NextResponse.json({ error: 'This role has already been filled. Thank you for your interest!' }, { status: 409 });
     }
 
     const mapper = JSON.parse(jd.mapperOutput);
@@ -43,6 +56,12 @@ export async function POST(req: NextRequest) {
       id: sessionId,
       jdId,
       candidateName: candidateName.trim(),
+      candidateEmail: candidateEmail.trim(),
+      candidatePhone: candidatePhone.trim(),
+      candidateLinkedin: candidateLinkedin.trim(),
+      candidatePortfolio: candidatePortfolio.trim(),
+      candidateBio: candidateBio.trim(),
+      resumeFileName: resumeFileName.trim(),
       status: 'active',
       turnCount: 0,
       coverageMap: JSON.stringify(initialCoverageMap),

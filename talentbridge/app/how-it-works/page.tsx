@@ -2,6 +2,7 @@
 // app/how-it-works/page.tsx — Architecture Page v3.0
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
+import { Eye, Clipboard, Timer, Link as LinkIcon, Microscope, ShieldCheck, Check, Search, Upload, UserPlus, MessageSquare, FileText, Send, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 
 const AGENTS = [
   {
@@ -28,7 +29,7 @@ const AGENTS = [
   },
   {
     num: '03', name: 'The Strategist', version: 'v1.1', score: '93/100',
-    desc: 'Invisible real-time brain. After every candidate response, it updates a 4-state coverage map (UNEXPLORED→TOUCHED→DEVELOPING→SUFFICIENT) and selects the next action from a 5-priority tree.',
+    desc: 'Invisible real-time brain. After every candidate response, it updates a multi-state coverage map and selects the next action from a 5-priority tree.',
     badge: 'Real-time',
     badgeColor: '#06B6D4',
     icon: (
@@ -87,32 +88,32 @@ const ANTI_CHEAT = [
   {
     title: 'Window Focus Tracking',
     desc: 'document.visibilitychange events logged and timestamped. Total away duration passed to Auditor as tamper-evident metadata.',
-    icon: '👁',
+    icon: <Eye size={24} color="#2563EB" />,
   },
   {
     title: 'Paste Event Detection',
     desc: 'Browser-level paste listener counts clipboard insertions per question. High frequency triggers Sentinel Stage 2.',
-    icon: '📋',
+    icon: <Clipboard size={24} color="#2563EB" />,
   },
   {
     title: 'Response Timing',
     desc: 'Per-question elapsed time tracked. Sub-30s or 10+ min responses flagged. Timing pattern analysis detects copy-paste behaviour.',
-    icon: '⏱',
+    icon: <Timer size={24} color="#2563EB" />,
   },
   {
     title: 'Reality Check Probes',
     desc: 'Strategist injects specific detail questions that only someone with genuine lived experience can answer credibly.',
-    icon: '🔗',
+    icon: <LinkIcon size={24} color="#2563EB" />,
   },
   {
     title: 'Language Style Forensics',
     desc: 'Stage 2 analysis scores 5 signals across early vs late session halves. A sudden vocabulary elevation inconsistent with prior responses gets flagged.',
-    icon: '🔬',
+    icon: <Microscope size={24} color="#2563EB" />,
   },
   {
     title: 'Schema Validator',
     desc: 'Pure code validator checks Auditor output completeness before any verdict reaches the employer. Retry logic on failure.',
-    icon: '🔐',
+    icon: <ShieldCheck size={24} color="#2563EB" />,
   },
 ];
 
@@ -181,7 +182,7 @@ export default function HowItWorksPage() {
               marginBottom: 24,
             }}
           >
-            Seven agents working<br />in silent coordination
+            Seven agents working <br /> in silent coordination
           </h1>
           <p className="body-large" style={{ color: '#94A3B8', marginBottom: 48, maxWidth: 580, margin: '0 auto 48px' }}>
             TalentBridge isn&apos;t a form with an AI label. It&apos;s a structured multi-agent pipeline where
@@ -215,6 +216,7 @@ export default function HowItWorksPage() {
               <div
                 key={agent.num}
                 style={{
+                  gridColumn: agent.num === '07' ? '1 / -1' : 'auto',
                   background: '#FFFFFF',
                   border: '1.5px solid #E5E7EB',
                   borderRadius: 20,
@@ -308,71 +310,74 @@ export default function HowItWorksPage() {
 
           {/* Journey steps */}
           <div style={{
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-            flexWrap: 'wrap', gap: 0, marginBottom: 64,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '32px 48px',
+            marginBottom: 64,
           }}>
             {[
-              { label: 'Employer uploads JD', sub: 'Mapper + QA run once — cached for all candidates', done: true },
-              { label: 'Candidate enters via link', sub: 'No registration. Name → start immediately', done: true },
-              { label: 'AI interview', sub: '15–20 min. Inquisitor + Strategist + Sentinel running', done: true },
-              { label: 'Auditor scores', sub: 'Full transcript analysis. Bias stripped.', done: false },
-              { label: 'Verdict issued', sub: 'Green / Amber / Redirect. Schema validated.', done: false },
-              { label: 'Employer responds (48hr)', sub: 'HR Reputation Score tracks every reply', done: false },
-            ].map((step, i, arr) => (
-              <div key={step.label} style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ textAlign: 'center', padding: '0 12px', maxWidth: 130 }}>
-                  <div style={{
-                    width: 44, height: 44, borderRadius: '50%',
-                    background: step.done ? 'linear-gradient(135deg, #2563EB, #0EA5E9)' : 'var(--surface-card)',
-                    border: `2px solid ${step.done ? '#2563EB' : 'var(--surface-border)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    margin: '0 auto 12px',
-                    transition: 'all 0.2s ease',
-                  }}>
-                    {step.done
-                      ? <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      : <span style={{ fontSize: 14, color: '#475569', fontWeight: 700, fontFamily: 'var(--font-display)' }}>{i + 1}</span>
-                    }
-                  </div>
-                  <div style={{
-                    fontSize: 12, fontWeight: 600,
-                    color: step.done ? '#F9FAFB' : '#475569',
-                    fontFamily: 'var(--font-body)', marginBottom: 4,
-                  }}>
-                    {step.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.4 }}>{step.sub}</div>
+              { label: 'Employer uploads JD', sub: 'Mapper + QA run once — cached for all candidates', done: true, icon: <Upload size={20} /> },
+              { label: 'Candidate enters via link', sub: 'No registration. Name → start immediately', done: true, icon: <UserPlus size={20} /> },
+              { label: 'AI interview', sub: '15–20 min. Inquisitor + Strategist + Sentinel running', done: true, icon: <MessageSquare size={20} /> },
+              { label: 'Auditor scores', sub: 'Full transcript analysis. Bias stripped.', done: false, icon: <FileText size={20} /> },
+              { label: 'Verdict issued', sub: 'Green / Amber / Redirect. Schema validated.', done: false, icon: <Send size={20} /> },
+              { label: 'Employer responds (48hr)', sub: 'HR Reputation Score tracks every reply', done: false, icon: <Check size={20} /> },
+            ].map((step, i) => (
+              <div key={step.label} style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                padding: '24px',
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                position: 'relative',
+              }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: '12px',
+                  background: step.done ? 'linear-gradient(135deg, #2563EB, #0EA5E9)' : 'rgba(255,255,255,0.05)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 16,
+                  color: step.done ? '#FFF' : '#475569',
+                  boxShadow: step.done ? '0 0 20px rgba(37,99,235,0.3)' : 'none',
+                }}>
+                  {step.icon}
                 </div>
-                {i < arr.length - 1 && (
-                  <div style={{
-                    width: 48, height: 2, marginTop: 22, flexShrink: 0,
-                    background: step.done
-                      ? 'linear-gradient(90deg, #2563EB, #0EA5E9)'
-                      : 'var(--surface-border)',
-                    borderRadius: 2,
-                  }} />
-                )}
+                <div style={{
+                  fontSize: 10, fontWeight: 700, color: '#06B6D4',
+                  fontFamily: 'var(--font-mono)', letterSpacing: '1px',
+                  marginBottom: 8, textTransform: 'uppercase',
+                }}>
+                  STEP 0{i + 1}
+                </div>
+                <div style={{
+                  fontSize: 14, fontWeight: 600,
+                  color: '#F9FAFB',
+                  fontFamily: 'var(--font-body)', marginBottom: 6,
+                }}>
+                  {step.label}
+                </div>
+                <div style={{ fontSize: 12, color: '#94A3B8', lineHeight: 1.5 }}>{step.sub}</div>
               </div>
             ))}
           </div>
 
-          {/* Triage outcomes */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
             {[
               {
-                emoji: '🟢',
+                icon: <CheckCircle2 size={32} color="#10B981" />,
                 title: 'GREEN — Fast Track',
                 desc: 'Average ≥ 75. Direct to final interview. Employer gets 48-hour response window tracked by system.',
                 color: '#10B981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)',
               },
               {
-                emoji: '🟡',
+                icon: <AlertCircle size={32} color="#F59E0B" />,
                 title: 'AMBER — Conditional',
                 desc: 'Great potential + one learnable gap. 3-week upskill path generated. Re-evaluation offered on completion.',
                 color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)',
               },
               {
-                emoji: '🔴',
+                icon: <XCircle size={32} color="#EF4444" />,
                 title: 'Redirect — Career Pivot',
                 desc: 'Fundamental mismatch. Candidate receives dignified career orientation. The word "Red" is never shown to them.',
                 color: '#EF4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)',
@@ -382,23 +387,28 @@ export default function HowItWorksPage() {
                 key={t.title}
                 style={{
                   background: t.bg, border: `1.5px solid ${t.border}`,
-                  borderRadius: 20, padding: '28px',
-                  transition: 'all 0.2s ease',
+                  borderRadius: 24, padding: '32px 32px 48px',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)';
-                  (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 40px ${t.border}`;
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 20px 40px ${t.border}`;
+                  (e.currentTarget as HTMLElement).style.borderColor = t.color;
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
                   (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                  (e.currentTarget as HTMLElement).style.borderColor = t.border;
                 }}
               >
-                <div style={{ fontSize: 28, marginBottom: 12 }}>{t.emoji}</div>
-                <div style={{ fontWeight: 700, color: t.color, fontSize: 15, fontFamily: 'var(--font-display)', marginBottom: 10 }}>
+                <div style={{ marginBottom: 8 }}>{t.icon}</div>
+                <div style={{ fontWeight: 800, color: t.color, fontSize: 16, fontFamily: 'var(--font-display)', letterSpacing: '-0.3px' }}>
                   {t.title}
                 </div>
-                <p style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+                <p style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, fontFamily: 'var(--font-body)' }}>
                   {t.desc}
                 </p>
               </div>
