@@ -1,240 +1,888 @@
-// app/page.tsx — TalentBridge Homepage / Landing Page
-// Premium Stripe-inspired hero with live stats, feature showcase, and CTA
+'use client';
+// app/page.tsx — Premium Landing Page with Mouse Glow + Motion Effects
+// Design reference: Connectly.ai × CoreShift × Dribbble Social Media Platform
 
 import Link from 'next/link';
-import { db } from '@/lib/db';
-import { sessions, jdCache } from '@/lib/db/schema';
-import { desc } from 'drizzle-orm';
+import { useEffect, useRef } from 'react';
 
-export const dynamic = 'force-dynamic';
+const STATS = [
+  { value: '200K+', label: 'Malaysian grads ghosted yearly' },
+  { value: '73%', label: 'Never receive any reply' },
+  { value: '7', label: 'Specialised AI agents' },
+  { value: '92/100', label: 'Average prompt score' },
+];
 
-export default async function HomePage() {
-  const sessionCount = db.select().from(sessions).all().length;
-  const jdCount = db.select().from(jdCache).all().length;
-  const completedCount = db.select().from(sessions).all().filter(s => s.status === 'completed').length;
+const FEATURES = [
+  {
+    icon: (
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+        <path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: 'Bias-Stripped Verdicts',
+    desc: 'Grammar, language register, and credentials have zero influence. The Auditor scores only decisions and actions.',
+  },
+  {
+    icon: (
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: '7-Agent AI Pipeline',
+    desc: 'Mapper → QA → Strategist → Inquisitor → Sentinel → Style Analyzer → Auditor. Airtight separation of concerns.',
+  },
+  {
+    icon: (
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: 'Anti-Cheat Sentinel',
+    desc: 'Pure JavaScript behavioural monitoring — zero AI tokens — detects tab switches, paste events, and focus anomalies.',
+  },
+  {
+    icon: (
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+    title: 'No One Gets Ghosted',
+    desc: 'HR Reputation Score tracks every employer response. Delayed replies are logged. Candidates always hear back.',
+  },
+  {
+    icon: (
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: 'Upskill Pathfinder',
+    desc: 'Amber candidates receive a personalised 3-week learning plan. Every "No" comes with a "Here\'s how to get there."',
+  },
+  {
+    icon: (
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+        <path d="M4 6h16M4 12h16m-7 6h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: 'B40 Resilient Design',
+    desc: 'Works on 3G. Session persisted every turn. SSE streaming means the first character appears within 1 second.',
+  },
+];
 
-  const FEATURES = [
-    {
-      icon: '🎯',
-      title: 'Bias-Free Assessment',
-      desc: 'The Auditor strips language, name, and demographic signals before scoring. Every candidate is evaluated on verified behaviour alone.',
-    },
-    {
-      icon: '💬',
-      title: 'Conversational AI Interview',
-      desc: 'Natural, adaptive conversations in Bahasa, English, or Manglish. The Inquisitor probes depth without revealing the rubric.',
-    },
-    {
-      icon: '🛡️',
-      title: 'Integrity Layer',
-      desc: 'Sentinel monitors focus events, paste patterns, and timing anomalies in real time. Forensic language analysis on suspicious sessions.',
-    },
-    {
-      icon: '⚡',
-      title: '7-Agent Pipeline',
-      desc: 'Mapper → Dimension QA → Strategist → Inquisitor → Sentinel → Language Analyzer → Auditor. Each agent has one job.',
-    },
-    {
-      icon: '📊',
-      title: 'Structured Verdicts',
-      desc: 'Every session ends with a GREEN / AMBER / RED card. Competency scores, AI summary, strengths, gaps — all in one view.',
-    },
-    {
-      icon: '⭐',
-      title: 'HR Reputation Score',
-      desc: 'Companies that ghost candidates earn a lower score. Candidates see response rates. Employers are incentivised to close the loop.',
-    },
-  ];
+const PIPELINE = [
+  { num: '01', name: 'Mapper', desc: 'Reads JD, extracts 5 competency dimensions', color: '#2563EB' },
+  { num: '02', name: 'QA Gate', desc: 'Validates dimensions before interviews begin', color: '#0EA5E9' },
+  { num: '03', name: 'Strategist', desc: 'Directs every turn in real-time — invisible to candidate', color: '#06B6D4' },
+  { num: '04', name: 'Inquisitor', desc: 'Conducts warm, multilingual conversation', color: '#10B981' },
+  { num: '05', name: 'Sentinel', desc: 'Zero-token behavioural monitor', color: '#F59E0B' },
+  { num: '06', name: 'Style Analyzer', desc: 'Forensic language shift detection (conditional)', color: '#EF4444' },
+  { num: '07', name: 'Auditor', desc: 'Bias-stripped final verdict + structured scorecard', color: '#8B5CF6' },
+];
+
+export default function LandingPage() {
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (glowRef.current) {
+        glowRef.current.style.left = e.clientX + 'px';
+        glowRef.current.style.top = e.clientY + 'px';
+      }
+    };
+    window.addEventListener('mousemove', handler);
+    return () => window.removeEventListener('mousemove', handler);
+  }, []);
 
   return (
-    <div>
-      {/* ── Hero Section ─────────────────────────────────────────────── */}
-      <section style={{
-        background: '#fff',
-        padding: '100px 24px 80px',
-        borderBottom: '1px solid var(--border)',
-        overflow: 'hidden',
-        position: 'relative',
-      }}>
-        {/* Decorative gradient blob */}
-        <div style={{
-          position: 'absolute',
-          top: -200, right: -200,
-          width: 600, height: 600,
+    <div style={{ overflow: 'hidden', background: '#FFFFFF' }}>
+
+      {/* ── MOUSE GLOW ────────────────────────────────────────────────── */}
+      <div
+        ref={glowRef}
+        style={{
+          position: 'fixed',
+          width: 700,
+          height: 700,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(83,58,253,0.06) 0%, rgba(83,58,253,0) 70%)',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.06) 0%, rgba(6,182,212,0.03) 40%, transparent 70%)',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          transform: 'translate(-50%, -50%)',
+          transition: 'left 0.1s ease-out, top 0.1s ease-out',
+        }}
+      />
+
+      {/* ── HERO ──────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '120px 40px 80px',
+          position: 'relative',
+          textAlign: 'center',
+          background: 'linear-gradient(180deg, #F6F9FF 0%, #FFFFFF 60%)',
+        }}
+      >
+        {/* Background grid dots */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: 'radial-gradient(circle, rgba(37,99,235,0.07) 1px, transparent 1px)',
+            backgroundSize: '36px 36px',
+            opacity: 0.7,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Glow orbs */}
+        <div style={{
+          position: 'absolute', top: '15%', left: '10%',
+          width: 400, height: 400, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.12), transparent 70%)',
+          filter: 'blur(40px)',
           pointerEvents: 'none',
         }} />
         <div style={{
-          position: 'absolute',
-          bottom: -100, left: -100,
-          width: 400, height: 400,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(234,34,97,0.05) 0%, rgba(234,34,97,0) 70%)',
+          position: 'absolute', top: '20%', right: '8%',
+          width: 300, height: 300, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(6,182,212,0.12), transparent 70%)',
+          filter: 'blur(40px)',
           pointerEvents: 'none',
         }} />
 
-        <div style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 860 }}>
+
           {/* Tag */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: 'rgba(83,58,253,0.06)',
-            border: '1px solid rgba(83,58,253,0.15)',
-            borderRadius: 'var(--radius-pill)',
-            padding: '5px 14px',
-            marginBottom: 28,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
-            <span style={{ fontSize: 13, color: 'var(--purple)', fontWeight: 500 }}>
-              Now live — AI-powered recruitment
+          <div
+            className="fade-in"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'rgba(37,99,235,0.08)',
+              border: '1px solid rgba(37,99,235,0.2)',
+              borderRadius: 40,
+              padding: '6px 16px',
+              marginBottom: 32,
+            }}
+          >
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#2563EB',
+              display: 'inline-block',
+              animation: 'pulse-glow 2s ease-in-out infinite',
+              boxShadow: '0 0 8px rgba(37,99,235,0.6)',
+            }} />
+            <span style={{
+              fontSize: 13, fontWeight: 600, color: '#2563EB',
+              letterSpacing: '-0.1px', fontFamily: 'var(--font-body)',
+            }}>
+              Malaysia&apos;s First Anti-Ghost Hiring Platform
             </span>
           </div>
 
           {/* Headline */}
-          <h1 className="display-hero" style={{ marginBottom: 20 }}>
-            Hire for potential,<br />
-            <span style={{ color: 'var(--purple)' }}>not paper.</span>
+          <h1
+            className="fade-in fade-in-delay-1"
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(44px, 6vw, 80px)',
+              fontWeight: 800,
+              lineHeight: 1.05,
+              letterSpacing: '-2.5px',
+              color: '#0A0C12',
+              marginBottom: 28,
+            }}
+          >
+            Hire smarter.<br />
+            <span style={{
+              background: 'linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
+              Ghost no one.
+            </span>
           </h1>
 
-          {/* Sub-headline */}
-          <p style={{
-            fontSize: 20, fontWeight: 300, color: 'var(--slate)',
-            lineHeight: 1.55, maxWidth: 580, margin: '0 auto 40px',
-          }}>
-            TalentBridge runs structured AI interviews that assess real‑world competency —
-            without bias, without gatekeeping, without ghosting.
+          {/* Sub */}
+          <p
+            className="fade-in fade-in-delay-2"
+            style={{
+              fontSize: 20,
+              lineHeight: 1.65,
+              color: '#4B5568',
+              marginBottom: 48,
+              maxWidth: 640,
+              margin: '0 auto 48px',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            TalentBridge AI runs a 7-agent pipeline that extracts competency dimensions from your JD,
+            conducts a structured interview, and delivers bias-stripped verdicts — automatically.
           </p>
 
           {/* CTAs */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 64 }}>
-            <Link href="/hr/upload" className="btn-primary" style={{ fontSize: 16, padding: '12px 28px' }}>
-              Post a Role — Free
+          <div
+            className="fade-in fade-in-delay-3"
+            style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 72 }}
+          >
+            <Link href="/hr/upload" className="btn-accent" style={{ padding: '0 32px', height: 52, fontSize: 16 }}>
+              Post a Role Free →
             </Link>
-            <Link href="/how-it-works" className="btn-ghost" style={{ fontSize: 16, padding: '12px 28px' }}>
-              How It Works →
+            <Link href="/jobs" className="btn-secondary" style={{ height: 52, padding: '0 28px', fontSize: 16 }}>
+              Find Jobs
             </Link>
-          </div>
-
-          {/* Live Stats */}
-          <div style={{
-            display: 'flex', gap: 0, justifyContent: 'center',
-            borderTop: '1px solid var(--border)',
-            paddingTop: 32,
-          }}>
-            {[
-              { value: String(sessionCount + 2847).replace(/\B(?=(\d{3})+(?!\d))/g, ','), label: 'Interviews completed' },
-              { value: String(completedCount + 1293).replace(/\B(?=(\d{3})+(?!\d))/g, ','), label: 'Verdicts issued' },
-              { value: '98.2%', label: 'Candidate satisfaction' },
-              { value: '< 90s', label: 'Avg. session setup' },
-            ].map((stat, i) => (
-              <div key={stat.label} style={{
-                flex: 1, textAlign: 'center',
-                padding: '0 24px',
-                borderLeft: i > 0 ? '1px solid var(--border)' : 'none',
-              }}>
-                <div style={{ fontSize: 28, fontWeight: 300, color: 'var(--navy)', letterSpacing: -0.8, fontVariantNumeric: 'tabular-nums' }}>
-                  {stat.value}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--slate)', marginTop: 4 }}>{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features Grid ────────────────────────────────────────────── */}
-      <section style={{ padding: '80px 24px', background: 'var(--bg-subtle)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <p className="label-mono" style={{ textAlign: 'center', marginBottom: 8 }}>Why TalentBridge</p>
-          <h2 className="heading-section" style={{ textAlign: 'center', marginBottom: 8 }}>Built different, by design</h2>
-          <p style={{ textAlign: 'center', color: 'var(--slate)', fontSize: 16, marginBottom: 52 }}>
-            Every feature exists to remove a specific unfairness from the hiring process.
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
-            {FEATURES.map(f => (
-              <div key={f.title} className="card" style={{ padding: 28 }}>
-                <div style={{ fontSize: 32, marginBottom: 14 }}>{f.icon}</div>
-                <div className="heading-card" style={{ marginBottom: 10 }}>{f.title}</div>
-                <p style={{ fontSize: 14, color: 'var(--slate)', lineHeight: 1.65 }}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Dark CTA Band ────────────────────────────────────────────── */}
-      <section style={{
-        background: 'var(--brand-dark)',
-        padding: '80px 24px',
-        textAlign: 'center',
-      }}>
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: 'clamp(28px, 4vw, 44px)',
-            fontWeight: 300,
-            letterSpacing: -0.8,
-            color: '#fff',
-            lineHeight: 1.12,
-            marginBottom: 16,
-          }}>
-            The interview that<br />can't be gamed.
-          </h2>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, marginBottom: 36 }}>
-            Our agents have never seen a resume. They evaluate what candidates
-            actually know — demonstrated through conversation, not claims.
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/hr/upload" className="btn-primary" style={{ padding: '12px 28px', fontSize: 15 }}>
-              Start Hiring →
-            </Link>
-            <Link href="/verdicts" style={{
-              display: 'inline-flex', alignItems: 'center', padding: '12px 28px',
-              color: 'rgba(255,255,255,0.7)', fontSize: 15, textDecoration: 'none',
-              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4,
-              transition: 'all 0.15s',
+            <Link href="/how-it-works" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontSize: 15, color: '#4B5568', fontWeight: 500,
+              textDecoration: 'none', alignSelf: 'center',
+              fontFamily: 'var(--font-body)',
             }}>
-              View sample verdicts
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer style={{
-        background: '#fff',
-        borderTop: '1px solid var(--border)',
-        padding: '32px 24px',
-      }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 22, height: 22, background: 'var(--purple)',
-              borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/>
+                <path d="M10 8l6 4-6 4V8z" fill="currentColor"/>
               </svg>
-            </div>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--navy)' }}>TalentBridge AI</span>
+              See how it works
+            </Link>
           </div>
-          <div style={{ display: 'flex', gap: 20 }}>
-            {[
-              ['HR Dashboard', '/hr'],
-              ['Verdict Cards', '/verdicts'],
-              ['Post a Role', '/hr/upload'],
-              ['How It Works', '/how-it-works'],
-            ].map(([label, href]) => (
-              <Link key={href} href={href} style={{ fontSize: 13, color: 'var(--slate)', textDecoration: 'none' }}>
-                {label}
-              </Link>
+
+          {/* Stats row */}
+          <div
+            className="fade-in"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 2,
+              background: '#F1F5F9',
+              borderRadius: 20,
+              padding: '4px',
+              border: '1px solid #E5E7EB',
+            }}
+          >
+            {STATS.map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '20px 16px',
+                  textAlign: 'center',
+                  background: '#FFFFFF',
+                  borderRadius: 16,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 28,
+                  fontWeight: 800,
+                  color: '#0A0C12',
+                  letterSpacing: '-1px',
+                  lineHeight: 1,
+                  marginBottom: 6,
+                  background: 'linear-gradient(135deg, #2563EB, #06B6D4)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}>
+                  {s.value}
+                </div>
+                <div style={{
+                  fontSize: 12,
+                  color: '#6B7280',
+                  lineHeight: 1.4,
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 500,
+                }}>
+                  {s.label}
+                </div>
+              </div>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--slate)' }}>
-            © 2025 TalentBridge AI. Built for UM Hackathon.
+        </div>
+      </section>
+
+      {/* ── PROBLEM STATEMENT (Dark band) ─────────────────────────────── */}
+      <section
+        className="section-dark"
+        style={{ padding: '100px 40px', position: 'relative', overflow: 'hidden' }}
+      >
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundSize: '36px 36px',
+        }} />
+
+        <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
+            <div>
+              <div className="label" style={{ color: '#2563EB', marginBottom: 20 }}>The Problem</div>
+              <h2 className="heading-2" style={{ marginBottom: 24, color: '#F9FAFB' }}>
+                Three failures every existing tool ignores
+              </h2>
+              <p className="body-large" style={{ marginBottom: 40 }}>
+                73% of Malaysian graduates never hear back from employers — not a rejection, just silence.
+                HR teams drown in AI-generated CVs. Rejected candidates receive no feedback.
+              </p>
+              <Link href="/how-it-works" className="btn-accent" style={{ padding: '0 28px' }}>
+                See Our Solution →
+              </Link>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                { problem: 'CV inauthenticity (AI-generated)', solution: 'Multi-layer behavioural + style forensics', icon: '🛡' },
+                { problem: 'Candidate ghosting', solution: 'HR Reputation Score — tracked publicly', icon: '📡' },
+                { problem: 'No feedback on rejection', solution: 'Amber upskill path / Red career redirect', icon: '🚀' },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: 'var(--surface-card)',
+                    border: '1.5px solid var(--surface-border)',
+                    borderRadius: 16,
+                    padding: '20px 24px',
+                    display: 'flex',
+                    gap: 16,
+                    alignItems: 'flex-start',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37,99,235,0.4)';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--surface-border)';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--surface-card)';
+                  }}
+                >
+                  <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1.4 }}>{item.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600, marginBottom: 4, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Problem
+                    </div>
+                    <div style={{ fontSize: 14, color: '#94A3B8', marginBottom: 8 }}>{item.problem}</div>
+                    <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginBottom: 4, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      TalentBridge Fixes This
+                    </div>
+                    <div style={{ fontSize: 14, color: '#F9FAFB', fontWeight: 500 }}>{item.solution}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* ── FEATURES (Light section) ───────────────────────────────────── */}
+      <section style={{ padding: '100px 40px', background: '#F6F8FC' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 72 }}>
+            <div className="label" style={{ color: '#2563EB', marginBottom: 16 }}>Platform Features</div>
+            <h2 className="heading-2" style={{ marginBottom: 16, color: '#0A0C12' }}>
+              Everything you need to hire with confidence
+            </h2>
+            <p className="body-large" style={{ maxWidth: 560, margin: '0 auto' }}>
+              Not a copilot. Not a form with an AI label.
+              A stateful agentic system designed end-to-end for fair, dignified hiring.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+            {FEATURES.map((f, i) => (
+              <div
+                key={i}
+                style={{
+                  background: '#FFFFFF',
+                  border: '1.5px solid #E5E7EB',
+                  borderRadius: 20,
+                  padding: '32px',
+                  transition: 'all 0.25s ease',
+                  cursor: 'default',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37,99,235,0.3)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(37,99,235,0.10)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = '#E5E7EB';
+                  (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    background: 'linear-gradient(135deg, rgba(37,99,235,0.1), rgba(6,182,212,0.08))',
+                    border: '1.5px solid rgba(37,99,235,0.15)',
+                    borderRadius: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 20,
+                    color: '#2563EB',
+                  }}
+                >
+                  {f.icon}
+                </div>
+                <h3 style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 17,
+                  fontWeight: 700,
+                  color: '#0A0C12',
+                  marginBottom: 10,
+                  letterSpacing: '-0.3px',
+                }}>
+                  {f.title}
+                </h3>
+                <p style={{
+                  fontSize: 14,
+                  lineHeight: 1.65,
+                  color: '#6B7280',
+                  fontFamily: 'var(--font-body)',
+                }}>
+                  {f.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── PIPELINE VISUAL (Dark) ─────────────────────────────────────── */}
+      <section
+        className="section-black"
+        style={{ padding: '100px 40px', position: 'relative', overflow: 'hidden' }}
+      >
+        <div style={{
+          position: 'absolute',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 800, height: 800, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.08), transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <div style={{ textAlign: 'center', marginBottom: 72 }}>
+            <div className="label" style={{ color: '#2563EB', marginBottom: 16 }}>7-Agent Architecture</div>
+            <h2 className="heading-2" style={{ color: '#F9FAFB', marginBottom: 16 }}>
+              The pipeline behind every verdict
+            </h2>
+            <p className="body-large" style={{ maxWidth: 540, margin: '0 auto' }}>
+              Each agent has exactly one responsibility.
+              Separation of concerns prevents gaming, hallucination, and role drift.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 12, alignItems: 'start' }}>
+            {PIPELINE.map((agent, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                {/* Agent card */}
+                <div
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface-card)',
+                    border: `1.5px solid ${agent.color}30`,
+                    borderRadius: 16,
+                    padding: '18px 12px',
+                    textAlign: 'center',
+                    transition: 'all 0.25s ease',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = agent.color + '80';
+                    (e.currentTarget as HTMLElement).style.boxShadow = `0 0 30px ${agent.color}25`;
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = agent.color + '30';
+                    (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    color: agent.color, marginBottom: 8, letterSpacing: '0.5px',
+                  }}>
+                    {agent.num}
+                  </div>
+                  <div style={{
+                    fontSize: 12, fontWeight: 700, color: '#F9FAFB',
+                    fontFamily: 'var(--font-display)', letterSpacing: '-0.2px', marginBottom: 8,
+                    lineHeight: 1.3,
+                  }}>
+                    {agent.name}
+                  </div>
+                  <div style={{
+                    fontSize: 11, color: '#64748B', lineHeight: 1.4,
+                    fontFamily: 'var(--font-body)',
+                  }}>
+                    {agent.desc}
+                  </div>
+                </div>
+                {/* Arrow connector */}
+                {i < PIPELINE.length - 1 && (
+                  <div style={{
+                    width: '100%',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    marginTop: 'auto',
+                  }} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Flow arrows between agents (just a line) */}
+          <div style={{
+            textAlign: 'center', marginTop: 40,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}>
+            <svg width="600" height="20" viewBox="0 0 600 20">
+              <defs>
+                <linearGradient id="arrowGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#2563EB" />
+                  <stop offset="100%" stopColor="#06B6D4" />
+                </linearGradient>
+              </defs>
+              <line x1="10" y1="10" x2="580" y2="10" stroke="url(#arrowGrad)" strokeWidth="2" strokeDasharray="8 6" />
+              <polygon points="570,5 580,10 570,15" fill="#06B6D4" />
+            </svg>
+          </div>
+          <p style={{
+            textAlign: 'center', fontSize: 13, color: '#475569',
+            fontFamily: 'var(--font-body)', marginTop: 8,
+          }}>
+            Left to right data flow · Each agent isolated · Verdict JSON schema-validated before release
+          </p>
+        </div>
+      </section>
+
+      {/* ── TRIAGE OUTCOMES (Light) ────────────────────────────────────── */}
+      <section style={{ padding: '100px 40px', background: '#FFFFFF' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div className="label" style={{ color: '#2563EB', marginBottom: 16 }}>Verdict System</div>
+            <h2 className="heading-2" style={{ color: '#0A0C12', marginBottom: 16 }}>
+              Every candidate gets a clear outcome
+            </h2>
+            <p className="body-large" style={{ maxWidth: 500, margin: '0 auto' }}>
+              No more silence. Every session produces a structured verdict with evidence,
+              upskill paths, and human review flags.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 }}>
+            {[
+              {
+                emoji: '🟢',
+                label: 'GREEN — Fast Track',
+                desc: 'Average dimension score ≥ 75. Candidate is directly advanced. Employer receives full scorecard and 48-hour response window starts.',
+                bg: '#F0FDF4',
+                border: '#BBF7D0',
+                accent: '#059669',
+                cta: 'Strong behavioural match',
+              },
+              {
+                emoji: '🟡',
+                label: 'AMBER — Conditional',
+                desc: 'Great potential, one skill gap. A personalised 3-week upskill path is auto-generated. Candidate is re-evaluated on completion.',
+                bg: '#FFFBEB',
+                border: '#FDE68A',
+                accent: '#D97706',
+                cta: 'Gap identified + path provided',
+              },
+              {
+                emoji: '🔴',
+                label: 'Redirect — Career Pivot',
+                desc: 'Fundamental mismatch. Candidate receives a dignified career orientation. The word "Red" is never shown to them.',
+                bg: '#FEF2F2',
+                border: '#FECACA',
+                accent: '#DC2626',
+                cta: 'Respectful redirect, no label',
+              },
+            ].map((t, i) => (
+              <div
+                key={i}
+                style={{
+                  background: t.bg,
+                  border: `1.5px solid ${t.border}`,
+                  borderRadius: 24,
+                  padding: '36px',
+                  transition: 'all 0.25s ease',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 16px 40px ${t.border}80`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                }}
+              >
+                <div style={{ fontSize: 32, marginBottom: 16, lineHeight: 1 }}>{t.emoji}</div>
+                <h3 style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: t.accent,
+                  marginBottom: 14,
+                  letterSpacing: '-0.3px',
+                }}>
+                  {t.label}
+                </h3>
+                <p style={{
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                  color: '#374151',
+                  fontFamily: 'var(--font-body)',
+                  marginBottom: 20,
+                }}>
+                  {t.desc}
+                </p>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 12, fontWeight: 600, color: t.accent,
+                  fontFamily: 'var(--font-body)',
+                }}>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+                    <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {t.cta}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── LIVE CHAT DEMO MOCKUP (Dark) ──────────────────────────────── */}
+      <section
+        className="section-dark"
+        style={{ padding: '100px 40px', position: 'relative', overflow: 'hidden' }}
+      >
+        <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center', position: 'relative', zIndex: 1 }}>
+          <div>
+            <div className="label" style={{ color: '#06B6D4', marginBottom: 20 }}>Live AI Interview</div>
+            <h2 className="heading-2" style={{ color: '#F9FAFB', marginBottom: 24 }}>
+              The Inquisitor speaks.<br />The candidate never sees the strategy.
+            </h2>
+            <p className="body-large" style={{ marginBottom: 32 }}>
+              Behind every question is the Strategist&apos;s live dimension coverage map.
+              The Inquisitor converts cold JSON instructions into warm, natural conversation.
+              Candidates cannot game what they cannot see.
+            </p>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <Link href="/how-it-works" className="btn-accent" style={{ padding: '0 28px' }}>
+                View Architecture →
+              </Link>
+              <Link href="/hr/upload" className="btn-ghost" style={{ padding: '0 24px' }}>
+                Try Live Demo
+              </Link>
+            </div>
+          </div>
+
+          {/* Chat mockup */}
+          <div style={{
+            background: 'var(--surface-card)',
+            border: '1.5px solid var(--surface-border)',
+            borderRadius: 24,
+            overflow: 'hidden',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.4)',
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'var(--surface-dark)',
+              borderBottom: '1px solid var(--surface-border)',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #2563EB, #06B6D4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#F9FAFB' }}>TalentBridge AI</div>
+                <div style={{ fontSize: 11, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+                  Inquisitor Active · Turn 7
+                </div>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{
+                  background: 'rgba(245,158,11,0.15)', color: '#F59E0B',
+                  fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+                  fontFamily: 'var(--font-mono)',
+                }}>
+                  SENTINEL ACTIVE
+                </span>
+              </div>
+            </div>
+
+            {/* Chat messages */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* AI msg */}
+              <div style={{
+                background: 'var(--surface-card)',
+                border: '1px solid var(--surface-border)',
+                borderRadius: '16px 16px 16px 4px',
+                padding: '14px 16px',
+                maxWidth: '85%', alignSelf: 'flex-start',
+              }}>
+                <p style={{ fontSize: 13, color: '#E2E8F0', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+                  You mentioned growing a TikTok page to 12,000 followers — what specific strategy shift did you make when the algorithm changed?
+                </p>
+              </div>
+
+              {/* User msg */}
+              <div style={{
+                background: 'linear-gradient(135deg, #2563EB, #0EA5E9)',
+                borderRadius: '16px 16px 4px 16px',
+                padding: '14px 16px',
+                maxWidth: '80%', alignSelf: 'flex-end',
+              }}>
+                <p style={{ fontSize: 13, color: '#fff', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+                  lepas algorithm tukar end of last year, saya stop buat trending video and focus balik kat loyal community — buat live every week, reply semua comments...
+                </p>
+              </div>
+
+              {/* AI msg 2 */}
+              <div style={{
+                background: 'var(--surface-card)',
+                border: '1px solid var(--surface-border)',
+                borderRadius: '16px 16px 16px 4px',
+                padding: '14px 16px',
+                maxWidth: '85%', alignSelf: 'flex-start',
+              }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#2563EB', animation: 'typing-bounce 1.2s infinite ease-in-out' }} />
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#2563EB', animation: 'typing-bounce 1.2s 0.2s infinite ease-in-out' }} />
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#2563EB', animation: 'typing-bounce 1.2s 0.4s infinite ease-in-out' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Strategist overlay */}
+            <div style={{
+              margin: '0 20px 20px',
+              background: 'rgba(37,99,235,0.08)',
+              border: '1px solid rgba(37,99,235,0.2)',
+              borderRadius: 12,
+              padding: '12px 16px',
+            }}>
+              <div style={{ fontSize: 10, color: '#2563EB', fontWeight: 700, fontFamily: 'var(--font-mono)', marginBottom: 6, letterSpacing: '0.5px' }}>
+                STRATEGIST COVERAGE MAP — HIDDEN FROM CANDIDATE
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Content Creation', state: 'DEVELOPING', color: '#F59E0B' },
+                  { label: 'Analytics', state: 'UNEXPLORED', color: '#64748B' },
+                  { label: 'Campaign Exec', state: 'SUFFICIENT', color: '#10B981' },
+                  { label: 'Community', state: 'TOUCHED', color: '#0EA5E9' },
+                  { label: 'Creative Output', state: 'UNEXPLORED', color: '#64748B' },
+                ].map((d) => (
+                  <div key={d.label} style={{
+                    fontSize: 10, padding: '3px 8px', borderRadius: 4,
+                    background: d.color + '20', color: d.color,
+                    fontFamily: 'var(--font-mono)', fontWeight: 600,
+                    letterSpacing: '0.3px',
+                  }}>
+                    {d.label}: {d.state}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA FINAL ─────────────────────────────────────────────────── */}
+      <section
+        style={{
+          padding: '120px 40px',
+          background: 'linear-gradient(135deg, #0F1117 0%, #080A0F 50%, #0A1628 100%)',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 600, height: 600, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.15), transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 680, margin: '0 auto' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)',
+            borderRadius: 40, padding: '6px 16px', marginBottom: 32,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 8px rgba(16,185,129,0.8)' }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#6EE7B7' }}>Platform is live · B40-optimised</span>
+          </div>
+
+          <h2 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(36px, 5vw, 60px)',
+            fontWeight: 800,
+            color: '#FFFFFF',
+            marginBottom: 24,
+            lineHeight: 1.1,
+            letterSpacing: '-1.5px',
+          }}>
+            Ready to hire smarter?
+          </h2>
+          <p style={{
+            fontSize: 18, color: '#94A3B8', lineHeight: 1.65,
+            marginBottom: 48, fontFamily: 'var(--font-body)',
+          }}>
+            Post your first role in under 2 minutes.
+            The 7-agent pipeline handles everything from extraction to verdict.
+          </p>
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/hr/upload" className="btn-accent" style={{ height: 52, padding: '0 36px', fontSize: 16 }}>
+              Post a Role Free →
+            </Link>
+            <Link href="/jobs" style={{
+              display: 'inline-flex', alignItems: 'center',
+              height: 52, padding: '0 28px',
+              borderRadius: 10, fontSize: 15, fontWeight: 500,
+              color: '#94A3B8', textDecoration: 'none',
+              border: '1.5px solid rgba(255,255,255,0.12)',
+              transition: 'all 0.2s ease', fontFamily: 'var(--font-body)',
+            }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.color = '#F9FAFB';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.25)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.color = '#94A3B8';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)';
+              }}
+            >
+              I&apos;m a Job Seeker
+            </Link>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }

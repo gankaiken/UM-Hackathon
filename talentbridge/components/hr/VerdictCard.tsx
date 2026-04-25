@@ -1,6 +1,5 @@
 'use client';
-// components/hr/VerdictCard.tsx — Full HR verdict deep-dive view (Stripe-themed)
-
+// components/hr/VerdictCard.tsx — Full HR verdict deep-dive view v3.0
 import { useState } from 'react';
 import Link from 'next/link';
 import type { VerdictResult, SentinelData, StrategistResult } from '@/lib/types';
@@ -18,15 +17,17 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'trace' | 'sentinel' | 'transcript'>('overview');
 
   const avgScore = verdict.overall_score ?? Math.round(
-    Object.values(verdict.dimension_scores).reduce((s, d) => s + d.score, 0) /
+    Object.values(verdict.dimension_scores).reduce((s, d) => s + (typeof d === 'number' ? d : d.score), 0) /
     Math.max(1, Object.keys(verdict.dimension_scores).length)
   );
-  const triage = verdict.triage_result;
+  const triage = verdict.triage_result as 'GREEN' | 'AMBER' | 'RED';
   const isFlagged = sentinelData.focus_loss_events > 3 && sentinelData.paste_events > 1;
 
-  const triageColor = triage === 'GREEN' ? 'var(--green-text)' : triage === 'AMBER' ? '#92650a' : 'var(--triage-red-text)';
-  const triageBorder = triage === 'GREEN' ? 'rgba(21,190,83,0.25)' : triage === 'AMBER' ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)';
-  const triageBg = triage === 'GREEN' ? 'rgba(21,190,83,0.05)' : triage === 'AMBER' ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)';
+  const triageMeta = {
+    GREEN: { color: '#059669', bg: 'rgba(16,185,129,0.08)', border: '#BBF7D0', icon: '✓', label: 'Fast-Track' },
+    AMBER: { color: '#D97706', bg: 'rgba(245,158,11,0.08)', border: '#FDE68A', icon: '⚠', label: 'Conditional' },
+    RED:   { color: '#DC2626', bg: 'rgba(239,68,68,0.08)',  border: '#FECACA', icon: '✕', label: 'Review' },
+  }[triage] || { color: '#6B7280', bg: '#F3F4F6', border: '#E5E7EB', icon: '•', label: 'Unknown' };
 
   const circumference = 2 * Math.PI * 34;
   const dashOffset = circumference * (1 - avgScore / 100);
@@ -39,398 +40,402 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
   ] as const;
 
   return (
-    <div className="page-container-narrow fade-in">
-      {/* Back nav */}
-      <div style={{ marginBottom: 24 }}>
-        <Link href="/verdicts" style={{ color: 'var(--slate)', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          All Verdict Cards
-        </Link>
-      </div>
-
-      {/* ── Triage Header ──────────────────────────────────────────────── */}
-      <div className="card" style={{
-        padding: 28, marginBottom: 20,
-        background: triageBg,
-        borderColor: triageBorder,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
-          <div>
-            {/* Badges row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <span className={`triage-badge triage-${triage}`}>{triage}</span>
-              {isFlagged && (
-                <span className="auth-flagged">
-                  <svg width="10" height="10" fill="none" viewBox="0 0 24 24">
-                    <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                  Sentinel Stage 2 Alert
-                </span>
-              )}
-              {verdict.human_review_required && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  fontSize: 11, fontWeight: 500, padding: '3px 8px', borderRadius: 4,
-                  background: 'rgba(245,158,11,0.1)',
-                  border: '1px solid rgba(245,158,11,0.3)',
-                  color: '#92650a',
-                }}>
-                  Human Review Required
-                </span>
-              )}
-            </div>
-
-            <h1 style={{ fontSize: 24, fontWeight: 400, color: 'var(--navy)', letterSpacing: -0.4, marginBottom: 6 }}>
-              {session.candidateName}
-            </h1>
-            <p style={{ color: 'var(--slate)', fontSize: 13 }}>
-              {jd?.roleTitle ?? 'Unknown role'} · {session.turnCount} turns ·{' '}
-              {new Date(session.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
-          </div>
-
-          {/* Score ring */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ position: 'relative' }}>
-              <svg width="88" height="88" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="44" cy="44" r="34" fill="none" stroke="#eef2f7" strokeWidth="7"/>
-                <circle
-                  cx="44" cy="44" r="34" fill="none"
-                  stroke={triage === 'GREEN' ? 'var(--green)' : triage === 'AMBER' ? 'var(--amber)' : 'var(--red)'}
-                  strokeWidth="7" strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={dashOffset}
-                  style={{ transition: 'stroke-dashoffset 1.2s ease-out' }}
-                />
-              </svg>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 22, fontWeight: 300, color: triageColor, letterSpacing: -0.5 }}>{Math.round(avgScore)}</span>
-              </div>
-            </div>
-            <div className="label-mono" style={{ marginTop: 6, fontSize: 9 }}>AVG SCORE</div>
-          </div>
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '40px 0 100px' }}>
+      <div style={{ maxWidth: 840, margin: '0 auto', padding: '0 24px' }}>
+        
+        {/* Back link */}
+        <div style={{ marginBottom: 24 }}>
+          <Link href="/hr" style={{ 
+            color: '#6B7280', fontSize: 13, textDecoration: 'none', 
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontWeight: 500, fontFamily: 'var(--font-body)',
+            transition: 'color 0.15s'
+          }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back to Dashboard
+          </Link>
         </div>
 
-        {/* AI Summary */}
+        {/* ── Main Header Card ────────────────────────────────────────── */}
         <div style={{
-          padding: '14px 16px',
-          background: '#fff',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'var(--slate-dark)',
-          fontSize: 14,
-          lineHeight: 1.65,
+          background: '#FFFFFF',
+          border: `1.5px solid ${triageMeta.border}`,
+          borderRadius: 24,
+          padding: '36px',
+          marginBottom: 24,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+          position: 'relative',
+          overflow: 'hidden',
         }}>
-          {verdict.ai_summary ?? verdict.summary ?? 'No summary provided.'}
-        </div>
-      </div>
+          {/* Subtle background glow based on triage */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            background: `linear-gradient(135deg, ${triageMeta.bg} 0%, transparent 40%)`,
+            pointerEvents: 'none',
+          }} />
 
-      {/* ── HR Actions ────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-        {triage === 'GREEN' && (
-          <button className="btn-primary" style={{ flex: 1, justifyContent: 'center', fontSize: 14, padding: '10px' }}>
-            ✓ Fast-Track to Final Interview
-          </button>
-        )}
-        {triage === 'AMBER' && (
-          <button className="btn-ghost" style={{ flex: 1, justifyContent: 'center', fontSize: 14, padding: '10px' }}>
-            Schedule Technical + Upskill Path
-          </button>
-        )}
-        {triage === 'RED' && (
-          <button className="btn-neutral" style={{ flex: 1, justifyContent: 'center', fontSize: 14, padding: '10px', color: 'var(--red)' }}>
-            Reject with AI-drafted feedback
-          </button>
-        )}
-        <button className="btn-neutral" style={{ fontSize: 14, padding: '10px 18px' }}>
-          Email Candidate
-        </button>
-      </div>
-
-      {/* ── Tabs ──────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '8px 16px',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `2px solid ${activeTab === tab.id ? 'var(--purple)' : 'transparent'}`,
-              color: activeTab === tab.id ? 'var(--purple)' : 'var(--slate)',
-              fontSize: 14,
-              fontWeight: activeTab === tab.id ? 500 : 400,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.15s',
-              marginBottom: -1,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Overview Tab ──────────────────────────────────────────────── */}
-      {activeTab === 'overview' && (
-        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Dimension scores */}
-          <div className="card" style={{ padding: 24 }}>
-            <div className="section-label" style={{ marginBottom: 16 }}>Competency Scores</div>
-            {Object.entries(verdict.dimension_scores).map(([dim, scoreData]) => {
-              const score = typeof scoreData === 'number' ? scoreData : scoreData.score;
-              const barColor = score >= 75 ? 'score-bar-green' : score >= 50 ? 'score-bar-amber' : 'score-bar-red';
-              const confidence = typeof scoreData === 'object' ? scoreData.confidence : null;
-              const evidence = typeof scoreData === 'object' ? scoreData.key_evidence : null;
-              return (
-                <div key={dim} style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, color: 'var(--slate-dark)', fontWeight: 500 }}>{dim}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {confidence && (
-                        <span style={{
-                          fontSize: 10, fontFamily: 'var(--font-mono)',
-                          padding: '1px 6px', borderRadius: 3,
-                          background: 'var(--bg-subtle)', border: '1px solid var(--border)',
-                          color: 'var(--slate)',
-                          textTransform: 'uppercase', letterSpacing: 0.4,
-                        }}>
-                          {confidence}
-                        </span>
-                      )}
-                      <span style={{ fontSize: 15, fontWeight: 400, color: 'var(--navy)', fontVariantNumeric: 'tabular-nums' }}>
-                        {score}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="score-bar-track">
-                    <div className={`score-bar-fill ${barColor}`} style={{ width: `${score}%` }} />
-                  </div>
-                  {evidence && (
-                    <p style={{ fontSize: 11, color: 'var(--slate)', marginTop: 4, fontStyle: 'italic', lineHeight: 1.5 }}>
-                      {evidence}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Strengths */}
-          {(verdict.verified_strengths ?? verdict.strengths ?? []).length > 0 && (
-            <div className="card" style={{ padding: 24 }}>
-              <div className="section-label" style={{ marginBottom: 14 }}>Verified Strengths</div>
-              {(verdict.verified_strengths ?? verdict.strengths ?? []).map((s: string, i: number) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 10, marginBottom: 8,
-                  padding: '10px 14px',
-                  background: 'rgba(21,190,83,0.04)',
-                  border: '1px solid rgba(21,190,83,0.2)',
-                  borderRadius: 'var(--radius-sm)',
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <span style={{
+                  background: triageMeta.bg, color: triageMeta.color,
+                  border: `1px solid ${triageMeta.border}`,
+                  fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6,
+                  fontFamily: 'var(--font-mono)', letterSpacing: '0.5px', textTransform: 'uppercase',
                 }}>
-                  <span style={{ color: 'var(--green-text)', flexShrink: 0 }}>✓</span>
-                  <span style={{ fontSize: 13, color: 'var(--slate-dark)', lineHeight: 1.5 }}>{s}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Gaps */}
-          {(verdict.identified_gaps ?? verdict.gaps ?? []).length > 0 && (
-            <div className="card" style={{ padding: 24 }}>
-              <div className="section-label" style={{ marginBottom: 14 }}>Identified Gaps</div>
-              {(verdict.identified_gaps ?? verdict.gaps ?? []).map((g: string, i: number) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 10, marginBottom: 8,
-                  padding: '10px 14px',
-                  background: 'rgba(245,158,11,0.04)',
-                  border: '1px solid rgba(245,158,11,0.2)',
-                  borderRadius: 'var(--radius-sm)',
-                }}>
-                  <span style={{ color: '#d97706', flexShrink: 0 }}>△</span>
-                  <span style={{ fontSize: 13, color: 'var(--slate-dark)', lineHeight: 1.5 }}>{g}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Upskill path */}
-          {verdict.upskill_path && verdict.upskill_path.length > 0 && (
-            <div className="card" style={{ padding: 24 }}>
-              <div className="section-label" style={{ marginBottom: 14 }}>Auto-Generated Upskill Path</div>
-              {verdict.upskill_path.map((step: { week: number; topic: string; resource: string }, i: number) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 14, marginBottom: 10,
-                  padding: '12px 14px',
-                  background: 'var(--bg-subtle)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: '50%',
-                    background: 'var(--amber)', color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 700, flexShrink: 0,
-                    fontFamily: 'var(--font-mono)',
-                  }}>
-                    W{step.week}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{step.topic}</div>
-                    <div style={{ fontSize: 12, color: 'var(--slate)', marginTop: 2 }}>{step.resource}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Agent Trace Tab ────────────────────────────────────────────── */}
-      {activeTab === 'trace' && (
-        <div className="fade-in">
-          <p style={{ color: 'var(--slate)', fontSize: 13, marginBottom: 16 }}>
-            Strategist reasoning chain — internal turn-by-turn decision log.
-          </p>
-          {transcripts.filter(t => t.strategistJson).length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--slate)' }}>
-              No agent trace data for this session.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {transcripts.filter(t => t.strategistJson).map((t, i) => {
-                const s: StrategistResult = JSON.parse(t.strategistJson!);
-                const actionColor = s.next_action === 'close_session' ? 'var(--red)' : s.next_action === 'reality_check' ? 'var(--amber)' : 'var(--green)';
-                const actionBg = s.next_action === 'close_session' ? 'rgba(239,68,68,0.08)' : s.next_action === 'reality_check' ? 'rgba(245,158,11,0.08)' : 'rgba(21,190,83,0.08)';
-                return (
-                  <div key={i} className="card" style={{ padding: 20 }}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                      <span className="label-mono">Turn {s.turn_number}</span>
-                      <span style={{
-                        padding: '2px 8px', fontSize: 10, borderRadius: 4,
-                        fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-                        background: actionBg, color: actionColor, letterSpacing: 0.4,
-                      }}>
-                        {s.next_action}
-                      </span>
-                      {s.sentinel_override && (
-                        <span style={{ fontSize: 10, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>⚠ SENTINEL</span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: 12, color: 'var(--slate-dark)', marginBottom: 8 }}>
-                      <span style={{ color: 'var(--slate)' }}>Target: </span>{s.target_dimension}
-                    </p>
-                    <div style={{
-                      padding: '10px 14px',
-                      background: 'var(--bg-subtle)',
-                      borderRadius: 6,
-                      border: '1px solid var(--border)',
-                      fontSize: 11,
-                      fontFamily: 'var(--font-mono)',
-                      color: 'var(--slate)',
-                      lineHeight: 1.7,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-all',
-                    }}>
-                      {s.reasoning}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Sentinel Log Tab ──────────────────────────────────────────── */}
-      {activeTab === 'sentinel' && (
-        <div className="fade-in">
-          <div className="card" style={{ padding: 24, borderColor: isFlagged ? 'rgba(239,68,68,0.3)' : 'var(--border)' }}>
-            <div className="section-label" style={{ marginBottom: 16 }}>Behavioural Monitoring Report</div>
-            {([
-              { label: 'Focus Loss Events', value: sentinelData.focus_loss_events, threshold: 3, unit: '' },
-              { label: 'Total Away Duration', value: Math.round(sentinelData.total_away_duration_seconds), threshold: 60, unit: 's' },
-              { label: 'Paste Events', value: sentinelData.paste_events, threshold: 1, unit: '' },
-              { label: 'Tab Switches', value: sentinelData.tab_switches, threshold: 2, unit: '' },
-            ] as const).map(({ label, value, threshold, unit }) => (
-              <div key={label} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '12px 0', borderBottom: '1px solid var(--border)',
-              }}>
-                <span style={{ fontSize: 13, color: 'var(--slate-dark)' }}>{label}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {value > threshold && (
-                    <span style={{ fontSize: 10, color: 'var(--red)', fontFamily: 'var(--font-mono)', background: 'rgba(239,68,68,0.08)', padding: '1px 6px', borderRadius: 3 }}>
-                      ↑ FLAGGED
-                    </span>
-                  )}
+                  {triageMeta.label}
+                </span>
+                {isFlagged && (
                   <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 400,
-                    color: value > threshold ? 'var(--red)' : 'var(--green-text)',
-                    fontVariantNumeric: 'tabular-nums',
+                    background: 'rgba(239,68,68,0.08)', color: '#DC2626',
+                    border: '1px solid #FECACA',
+                    fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6,
+                    fontFamily: 'var(--font-mono)', letterSpacing: '0.5px', textTransform: 'uppercase',
+                    display: 'flex', alignItems: 'center', gap: 4,
                   }}>
-                    {value}{unit}
+                    ⚠ Sentinel Flag
+                  </span>
+                )}
+              </div>
+
+              <h1 style={{ 
+                fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, 
+                color: '#0A0C12', letterSpacing: '-1px', marginBottom: 8 
+              }}>
+                {session.candidateName}
+              </h1>
+              <p style={{ color: '#64748B', fontSize: 15, fontFamily: 'var(--font-body)' }}>
+                {jd?.roleTitle || 'Untitled Role'} · Turn count: {session.turnCount} · 
+                {' '}{new Date(session.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            </div>
+
+            {/* Score Ring */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ position: 'relative' }}>
+                <svg width="100" height="100" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="#F1F5F9" strokeWidth="8"/>
+                  <circle
+                    cx="50" cy="50" r="42" fill="none"
+                    stroke={triageMeta.color}
+                    strokeWidth="8" strokeLinecap="round"
+                    strokeDasharray={circumference * (42/34)}
+                    strokeDashoffset={circumference * (42/34) * (1 - avgScore / 100)}
+                    style={{ transition: 'stroke-dashoffset 1.5s ease-out' }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ 
+                    fontSize: 28, fontWeight: 800, color: triageMeta.color, 
+                    fontFamily: 'var(--font-display)', letterSpacing: '-1px' 
+                  }}>
+                    {Math.round(avgScore)}
                   </span>
                 </div>
               </div>
-            ))}
-
-            <div style={{
-              marginTop: 16, padding: '14px 16px',
-              background: isFlagged ? 'rgba(239,68,68,0.05)' : 'rgba(21,190,83,0.05)',
-              border: `1px solid ${isFlagged ? 'rgba(239,68,68,0.2)' : 'rgba(21,190,83,0.2)'}`,
-              borderRadius: 'var(--radius-sm)',
-            }}>
-              <div className={isFlagged ? 'auth-flagged' : 'auth-clean'}>
-                {isFlagged
-                  ? '⚠ Stage 2 Alert — Elevated risk of AI proxy use detected'
-                  : '✓ Clean behavioural profile — no anomaly flags'}
+              <div style={{ 
+                fontSize: 10, fontWeight: 700, color: '#94A3B8', 
+                fontFamily: 'var(--font-mono)', letterSpacing: '0.8px',
+                marginTop: 8, textTransform: 'uppercase'
+              }}>
+                Average Score
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ── Transcript Tab ────────────────────────────────────────────── */}
-      {activeTab === 'transcript' && (
-        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {transcripts.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--slate)' }}>
-              No transcript recorded.
+          <div style={{ 
+            marginTop: 32, padding: '18px 20px', 
+            background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 16,
+            position: 'relative', zIndex: 1
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 8, textTransform: 'uppercase' }}>
+              AI Executive Summary
             </div>
-          ) : (
-            transcripts.map((t, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: t.role === 'candidate' ? 'flex-end' : 'flex-start',
+            <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.7, fontFamily: 'var(--font-body)' }}>
+              {verdict.ai_summary || verdict.summary || 'No summary provided.'}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Actions ─────────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+          {triage === 'GREEN' && (
+            <button className="btn-primary" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48 }}>
+              Fast-Track to Final Interview →
+            </button>
+          )}
+          {triage === 'AMBER' && (
+            <button className="btn-accent" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48 }}>
+              Schedule Technical Review
+            </button>
+          )}
+          {triage === 'RED' && (
+            <button className="btn-secondary" style={{ flex: 2, justifyContent: 'center', fontSize: 14, height: 48, color: '#EF4444', borderColor: '#FECACA' }}>
+              Decline Candidate
+            </button>
+          )}
+          <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center', fontSize: 14, height: 48 }}>
+            Email
+          </button>
+          <button className="btn-secondary" style={{ width: 48, height: 48, padding: 0, justifyContent: 'center' }}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+              <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* ── Sub-navigation Tabs ────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 24, marginBottom: 28, borderBottom: '1px solid #E5E7EB', padding: '0 8px' }}>
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                background: 'none', border: 'none', padding: '12px 0',
+                fontSize: 14, fontWeight: activeTab === tab.id ? 700 : 500,
+                color: activeTab === tab.id ? '#2563EB' : '#64748B',
+                borderBottom: `2.5px solid ${activeTab === tab.id ? '#2563EB' : 'transparent'}`,
+                cursor: 'pointer', fontFamily: 'var(--font-body)',
+                transition: 'all 0.15s ease', marginBottom: -1.25,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Tab Content ──────────────────────────────────────────────── */}
+        <div className="fade-in">
+          {activeTab === 'overview' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              
+              {/* Scores Card */}
+              <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '32px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 24, textTransform: 'uppercase' }}>
+                  Competency Breakdown
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {Object.entries(verdict.dimension_scores).map(([dim, scoreData]) => {
+                    const score = typeof scoreData === 'number' ? scoreData : scoreData.score;
+                    const confidence = typeof scoreData === 'object' ? scoreData.confidence : null;
+                    const evidence = typeof scoreData === 'object' ? scoreData.key_evidence : null;
+                    const barColor = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+                    
+                    return (
+                      <div key={dim}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0A0C12', fontFamily: 'var(--font-display)' }}>{dim}</span>
+                            {confidence && (
+                              <span style={{ 
+                                fontSize: 10, fontWeight: 700, px: '6px', py: '2px', borderRadius: 4, 
+                                background: '#F1F5F9', color: '#64748B', fontFamily: 'var(--font-mono)' 
+                              }}>
+                                {confidence.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: 16, fontWeight: 800, color: '#0A0C12', fontFamily: 'var(--font-mono)' }}>{score}</span>
+                        </div>
+                        <div style={{ height: 6, width: '100%', background: '#F1F5F9', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+                          <div style={{ height: '100%', width: `${score}%`, background: barColor, borderRadius: 10 }} />
+                        </div>
+                        {evidence && (
+                          <div style={{ 
+                            fontSize: 13, color: '#64748B', lineHeight: 1.6, 
+                            fontFamily: 'var(--font-body)', paddingLeft: 12, borderLeft: '2px solid #E2E8F0' 
+                          }}>
+                            {evidence}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Strengths & Gaps */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                {/* Strengths */}
+                <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '24px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#059669', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 20, textTransform: 'uppercase' }}>
+                    Verified Strengths
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {(verdict.verified_strengths || verdict.strengths || []).map((s: string, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: '#374151', lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
+                        <span style={{ color: '#10B981', fontWeight: 900 }}>✓</span>
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Gaps */}
+                <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '24px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#D97706', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 20, textTransform: 'uppercase' }}>
+                    Identified Gaps
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {(verdict.identified_gaps || verdict.gaps || []).map((g: string, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: '#374151', lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
+                        <span style={{ color: '#F59E0B', fontWeight: 900 }}>!</span>
+                        {g}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Upskill Path */}
+              {verdict.upskill_path && verdict.upskill_path.length > 0 && (
+                <div style={{ background: '#FFFFFF', border: '1.5px solid #FDE68A', borderRadius: 20, padding: '32px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                    <div style={{ fontSize: 24 }}>🚀</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#B45309', fontFamily: 'var(--font-display)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                      Auto-Generated Growth Path
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {verdict.upskill_path.map((step, i) => (
+                      <div key={i} style={{ 
+                        background: '#FFFBEB', border: '1px solid #FEF3C7', 
+                        borderRadius: 14, padding: '16px 20px',
+                        display: 'flex', gap: 16, alignItems: 'center'
+                      }}>
+                        <div style={{ 
+                          width: 32, height: 32, borderRadius: 8, background: '#F59E0B', 
+                          color: '#fff', fontSize: 11, fontWeight: 800,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          fontFamily: 'var(--font-mono)'
+                        }}>
+                          W{step.week}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#92400E', fontFamily: 'var(--font-body)' }}>{step.topic}</div>
+                          <div style={{ fontSize: 12, color: '#B45309', opacity: 0.8 }}>{step.resource}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'trace' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {transcripts.filter(t => t.strategistJson).length === 0 ? (
+                <div style={{ padding: '60px', textAlign: 'center', background: '#FFFFFF', color: '#94A3B8', borderRadius: 20, border: '1px solid #E5E7EB' }}>
+                  No strategy trace recorded for this session.
+                </div>
+              ) : (
+                transcripts.filter(t => t.strategistJson).map((t, i) => {
+                  const s: StrategistResult = JSON.parse(t.strategistJson!);
+                  const actionColor = s.next_action === 'close_session' ? '#EF4444' : s.next_action === 'reality_check' ? '#F59E0B' : '#10B981';
+                  return (
+                    <div key={i} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 16, padding: '24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Turn {s.turn_number}</span>
+                          <span style={{ 
+                            fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 4, 
+                            background: actionColor + '15', color: actionColor, 
+                            textTransform: 'uppercase', fontFamily: 'var(--font-mono)' 
+                          }}>{s.next_action}</span>
+                        </div>
+                        <span style={{ fontSize: 12, color: '#64748B', fontFamily: 'var(--font-body)' }}>
+                          Target: <strong style={{ color: '#0A0C12' }}>{s.target_dimension}</strong>
+                        </span>
+                      </div>
+                      <div style={{ 
+                        background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: '16px',
+                        fontSize: 13, color: '#334155', lineHeight: 1.6, fontFamily: 'var(--font-mono)',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {s.reasoning}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )}
+
+          {activeTab === 'sentinel' && (
+            <div style={{ background: '#FFFFFF', border: isFlagged ? '1.5px solid #FECACA' : '1px solid #E5E7EB', borderRadius: 20, padding: '32px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 24, textTransform: 'uppercase' }}>
+                Behavioural Watchdog Report
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {[
+                  { label: 'Window Focus Loss', value: sentinelData.focus_loss_events, threshold: 3, unit: ' events' },
+                  { label: 'Away Duration', value: Math.round(sentinelData.total_away_duration_seconds), threshold: 60, unit: 's' },
+                  { label: 'Clipboard Paste Actions', value: sentinelData.paste_events, threshold: 1, unit: ' events' },
+                  { label: 'Tab Swapping Count', value: sentinelData.tab_switches, threshold: 2, unit: ' events' },
+                ].map((item, idx) => (
+                  <div key={idx} style={{ 
+                    display: 'flex', justifyContent: 'space-between', padding: '16px 0',
+                    borderBottom: idx === 3 ? 'none' : '1px solid #F1F5F9'
+                  }}>
+                    <span style={{ fontSize: 14, color: '#4B5563', fontFamily: 'var(--font-body)' }}>{item.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {item.value > item.threshold && <span style={{ fontSize: 9, fontWeight: 800, color: '#EF4444', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>Flagged</span>}
+                      <span style={{ 
+                        fontSize: 16, fontWeight: 700, color: item.value > item.threshold ? '#EF4444' : '#059669',
+                        fontFamily: 'var(--font-mono)' 
+                      }}>{item.value}{item.unit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ 
+                marginTop: 24, padding: '16px', borderRadius: 12,
+                background: isFlagged ? 'rgba(239,68,68,0.05)' : 'rgba(16,185,129,0.05)',
+                border: `1px solid ${isFlagged ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)'}`,
+                color: isFlagged ? '#B91C1C' : '#065F46',
+                fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)', textAlign: 'center'
               }}>
-                {t.role === 'inquisitor' && (
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <div style={{
-                      width: 28, height: 28, borderRadius: '50%',
-                      background: 'var(--purple)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, marginTop: 2,
+                {isFlagged ? '⚠ STAGE 2 ALERT: Elevated risk of automated tool usage detected' : '✓ CLEAN: Behavioural profile consistent with human interaction'}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'transcript' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {transcripts.map((t, i) => (
+                <div key={i} style={{ 
+                  display: 'flex', gap: 12, 
+                  flexDirection: t.role === 'candidate' ? 'row-reverse' : 'row' 
+                }}>
+                  {/* Icon for AI */}
+                  {t.role === 'inquisitor' && (
+                    <div style={{ 
+                      width: 32, height: 32, borderRadius: 8, background: '#2563EB', 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                     }}>
-                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
+                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
                       </svg>
                     </div>
-                    <div className="bubble-ai" style={{ maxWidth: '80%' }}>{t.content}</div>
+                  )}
+                  <div style={{ 
+                    maxWidth: '80%', padding: '14px 18px', borderRadius: 16,
+                    background: t.role === 'candidate' ? '#F3F4F6' : '#2563EB',
+                    color: t.role === 'candidate' ? '#1F2937' : '#FFFFFF',
+                    fontSize: 14, lineHeight: 1.6, fontFamily: 'var(--font-body)',
+                    border: t.role === 'candidate' ? '1px solid #E5E7EB' : 'none',
+                    boxShadow: t.role === 'candidate' ? 'none' : '0 4px 12px rgba(37,99,235,0.2)'
+                  }}>
+                    {t.content}
                   </div>
-                )}
-                {t.role === 'candidate' && (
-                  <div className="bubble-candidate" style={{ maxWidth: '80%' }}>{t.content}</div>
-                )}
-              </div>
-            ))
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

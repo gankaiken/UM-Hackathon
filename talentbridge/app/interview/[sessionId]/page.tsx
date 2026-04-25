@@ -1,8 +1,5 @@
 'use client';
-// app/interview/[sessionId]/page.tsx
-// Candidate-facing AI interview — professional dual-pane layout
-// Left: role + timeline | Right: conversational chat
-
+// app/interview/[sessionId]/page.tsx — Premium Interview Interface v3.0
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import SentinelTracker from '@/components/candidate/SentinelTracker';
@@ -32,7 +29,6 @@ export default function InterviewPage() {
 
   const [state, setState] = useState<ChatState>('loading');
   const [candidateName, setCandidateName] = useState('');
-  const [nameInput, setNameInput] = useState('');
   const [roleTitle, setRoleTitle] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -75,29 +71,12 @@ export default function InterviewPage() {
       } catch { setState('entry'); }
     }
     loadSession();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, router]);
 
   async function sendFirstQuestion(name: string, role: string) {
     setIsWaiting(true);
     await sendMessage('__INTERVIEW_START__', name, role);
     setIsWaiting(false);
-  }
-
-  async function handleNameSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!nameInput.trim()) return;
-    const name = nameInput.trim();
-    setCandidateName(name);
-    setState('chatting');
-    try {
-      const sessionRes = await fetch(`/api/session/${sessionId}`);
-      if (sessionRes.ok) {
-        const sessionData = await sessionRes.json();
-        setRoleTitle(sessionData.mapperResult?.role_title ?? 'this role');
-        await sendFirstQuestion(name, sessionData.mapperResult?.role_title ?? '');
-      }
-    } catch (err) { console.error('Failed to start session:', err); }
   }
 
   async function handleSend() {
@@ -173,7 +152,7 @@ export default function InterviewPage() {
         if (data.ready || attempts > 30) {
           clearInterval(poll);
           setState('done');
-          setTimeout(() => router.push(`/result/${sessionId}`), 1500);
+          setTimeout(() => router.push(`/result/${sessionId}`), 1200);
         }
       }, 2000);
     } catch { setState('done'); }
@@ -183,391 +162,299 @@ export default function InterviewPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   }
 
-  // ── Active step ──────────────────────────────────────────────────────────────
-  const activeStepIdx = state === 'entry' ? 0 :
-    state === 'chatting' ? 2 :
-    state === 'verdict_pending' ? 3 :
-    state === 'done' ? 4 : 2;
+  // Active step index
+  const activeStepIdx = state === 'entry' ? 0 : state === 'chatting' ? 2 : state === 'verdict_pending' ? 3 : state === 'done' ? 4 : 2;
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
+  // ── Loading state ────────────────────────────────────────────────────────
   if (state === 'loading') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
-        <div className="spinner" style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTop: '3px solid var(--purple)' }} />
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF' }}>
+        <div className="spinner" style={{ width: 32, height: 32, border: '3px solid #F1F5F9', borderTop: '3px solid #2563EB' }} />
       </div>
     );
   }
 
-  // ── Verdict Pending ──────────────────────────────────────────────────────────
+  // ── Verdict Pending / Done ───────────────────────────────────────────────
   if (state === 'verdict_pending' || state === 'done') {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
-        <div style={{ textAlign: 'center', maxWidth: 400 }}>
-          <div className="spinner" style={{ width: 52, height: 52, border: '4px solid var(--border)', borderTop: '4px solid var(--purple)', margin: '0 auto 24px' }} />
-          <h2 style={{ fontSize: 22, fontWeight: 400, color: 'var(--navy)', marginBottom: 8, letterSpacing: -0.3 }}>
-            Reviewing your answers...
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', padding: 24 }}>
+        <div style={{ textAlign: 'center', maxWidth: 440 }} className="fade-in">
+          <div style={{ position: 'relative', width: 80, height: 80, margin: '0 auto 32px' }}>
+            <div className="spinner" style={{ position: 'absolute', inset: 0, border: '4px solid #F1F5F9', borderTop: '4px solid #2563EB' }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⚖️</div>
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, color: '#0A0C12', marginBottom: 16, letterSpacing: '-0.8px' }}>
+            Submission received.
           </h2>
-          <p style={{ color: 'var(--slate)', fontSize: 15 }}>The Auditor is processing your session. This takes less than a minute.</p>
+          <p style={{ color: '#64748B', fontSize: 16, lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+            The <strong>Auditor Agent</strong> is currently scoring your session across all competency dimensions. This usually takes <br /> 20-30 seconds.
+          </p>
         </div>
       </div>
     );
   }
 
-  // ── Name Entry ───────────────────────────────────────────────────────────────
-  if (state === 'entry') {
-    return (
-      <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ maxWidth: 440, width: '100%' }} className="fade-in">
-          <div style={{
-            width: 52, height: 52, borderRadius: 12,
-            background: 'var(--purple)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 24,
+  // ── Main Chat Interface ──────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', flexDirection: 'column' }}>
+      <SentinelTracker />
+      
+      {/* ── HEADER ── */}
+      <header style={{ 
+        height: 64, background: '#FFFFFF', borderBottom: '1.5px solid #E5E7EB', 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px',
+        position: 'sticky', top: 0, zIndex: 100
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ 
+            width: 36, height: 36, background: 'linear-gradient(135deg, #2563EB, #06B6D4)',
+            borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
-            <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
             </svg>
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 400, color: 'var(--navy)', letterSpacing: -0.4, marginBottom: 8 }}>
-            Welcome to TalentBridge
-          </h1>
-          <p style={{ color: 'var(--slate)', fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
-            This is a conversational interview about your real experience.
-            There are no trick questions — just share your story naturally.
-          </p>
-          <form onSubmit={handleNameSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--slate-dark)', marginBottom: 8 }}>
-                What&apos;s your name?
-              </label>
-              <input
-                type="text"
-                value={nameInput}
-                onChange={e => setNameInput(e.target.value)}
-                placeholder="E.g. Aisyah, Raj, Wei Ming..."
-                autoFocus
-                style={{
-                  width: '100%', padding: '12px 14px',
-                  border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
-                  fontSize: 15, color: 'var(--navy)', outline: 'none',
-                  transition: 'border-color 0.15s, box-shadow 0.15s',
-                  fontFamily: 'inherit',
-                }}
-                onFocus={e => {
-                  e.target.style.borderColor = 'var(--purple)';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(83,58,253,0.08)';
-                }}
-                onBlur={e => {
-                  e.target.style.borderColor = 'var(--border)';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!nameInput.trim()}
-              className="btn-primary"
-              style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 15, opacity: nameInput.trim() ? 1 : 0.5 }}
-            >
-              Begin Interview →
-            </button>
-          </form>
-          <p style={{ textAlign: 'center', color: 'var(--slate)', fontSize: 12, marginTop: 24 }}>
-            🔒 Your conversation is private and used only for this application.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Main Chat Layout ─────────────────────────────────────────────────────────
-  return (
-    <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' }}>
-      <SentinelTracker />
-
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', maxHeight: 'calc(100vh - 60px)' }}>
-
-        {/* ── Left Panel: Role + Timeline ────────────────────────────── */}
-        <div style={{
-          width: 280, flexShrink: 0,
-          borderRight: '1px solid var(--border)',
-          padding: 24,
-          display: 'flex', flexDirection: 'column', gap: 24,
-          overflowY: 'auto',
-          background: 'var(--bg-subtle)',
-        }}>
-          {/* Active Role */}
           <div>
-            <p className="section-label" style={{ marginBottom: 12 }}>Active Role</p>
-            <div className="card" style={{ padding: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--navy)', lineHeight: 1.3, marginBottom: 6 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#0A0C12', fontFamily: 'var(--font-display)', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+              The Inquisitor
+            </div>
+            <div style={{ fontSize: 11, color: '#10B981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 6px #10B981' }} />
+              Active Session
+            </div>
+          </div>
+        </div>
+
+        <div style={{ 
+          background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)',
+          borderRadius: 8, padding: '4px 12px', fontSize: 11, fontWeight: 700, 
+          color: '#2563EB', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' 
+        }}>
+          SENTINEL MONITORING ENABLED
+        </div>
+      </header>
+
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        
+        {/* ── LEFT PANEL: Status ── */}
+        <aside style={{ 
+          width: 300, borderRight: '1.5px solid #E5E7EB', background: '#FFFFFF',
+          display: 'flex', flexDirection: 'column', gap: 28, padding: 24,
+          overflowY: 'auto'
+        }}>
+          {/* Role section */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 12, textTransform: 'uppercase' }}>
+              Applying For
+            </div>
+            <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 16, padding: '16px' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#0A0C12', fontFamily: 'var(--font-display)', lineHeight: 1.3, marginBottom: 4 }}>
                 {roleTitle}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--slate)' }}>
-                AI Interview · Live session
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  fontSize: 11, color: 'var(--green-text)',
-                  background: 'rgba(21,190,83,0.1)', border: '1px solid rgba(21,190,83,0.25)',
-                  borderRadius: 4, padding: '2px 8px',
-                }}>
-                  <span className="pulse-dot" style={{ width: 5, height: 5 }} />
-                  Live
-                </span>
-              </div>
+              <div style={{ fontSize: 12, color: '#6B7280', fontFamily: 'var(--font-body)' }}>Nexus Digital Sdn Bhd</div>
             </div>
           </div>
 
-          {/* Candidate */}
+          {/* Progress Timeline */}
           <div>
-            <p className="section-label" style={{ marginBottom: 12 }}>Candidate</p>
-            <div className="card" style={{ padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  background: 'var(--purple-soft)',
-                  border: '1.5px solid var(--purple-light)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 600, color: 'var(--purple)',
-                  flexShrink: 0,
-                }}>
-                  {candidateName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--navy)' }}>{candidateName}</div>
-                  <div style={{ fontSize: 11, color: 'var(--slate)' }}>In interview</div>
-                </div>
-              </div>
-              {/* Timeline */}
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {TIMELINE_STEPS.map((step, i) => (
-                  <div key={step.id} className="timeline-step" style={{ color: i < activeStepIdx ? 'var(--green-text)' : i === activeStepIdx ? 'var(--navy)' : 'var(--slate)' }}>
-                    <div className={`timeline-dot ${i < activeStepIdx ? 'timeline-dot-done' : i === activeStepIdx ? 'timeline-dot-active' : 'timeline-dot-pending'}`} />
-                    <span style={{ fontSize: 12 }}>{step.label}</span>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 16, textTransform: 'uppercase' }}>
+              Interview Status
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {TIMELINE_STEPS.map((step, i) => {
+                const isDone = i < activeStepIdx;
+                const isActive = i === activeStepIdx;
+                return (
+                  <div key={step.id} style={{ display: 'flex', gap: 14, minHeight: 48 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ 
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: isDone ? '#10B981' : isActive ? '#FFFFFF' : '#F1F5F9',
+                        border: `2px solid ${isDone ? '#10B981' : isActive ? '#2563EB' : '#E5E7EB'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 1
+                      }}>
+                        {isDone && <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        {isActive && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />}
+                      </div>
+                      {i < TIMELINE_STEPS.length - 1 && (
+                        <div style={{ width: 2, flex: 1, background: isDone ? '#10B981' : '#E5E7EB', margin: '2px 0' }} />
+                      )}
+                    </div>
+                    <div style={{ 
+                      fontSize: 13, fontWeight: (isActive || isDone) ? 700 : 500,
+                      color: isDone ? '#10B981' : isActive ? '#0A0C12' : '#9CA3AF',
+                      fontFamily: 'var(--font-body)', paddingTop: 1
+                    }}>
+                      {step.label}
+                    </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Agent info */}
-          <div>
-            <p className="section-label" style={{ marginBottom: 12 }}>Current Agent</p>
-            <div className="card-sm">
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)', marginBottom: 4 }}>
-                The Inquisitor
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--slate)', lineHeight: 1.5 }}>
-                conversational, non-evaluative
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--slate)', background: 'var(--bg-subtle)', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)' }}>
-                  inquisitor_v2
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Turn counter */}
+          {/* Turn Stats */}
           {turnCount > 0 && (
-            <div style={{ textAlign: 'center', padding: '10px', background: 'var(--purple-soft)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--purple-light)' }}>
-              <div style={{ fontSize: 20, fontWeight: 300, color: 'var(--purple)', letterSpacing: -0.5 }}>
+            <div style={{ 
+              marginTop: 'auto', background: 'rgba(37,99,235,0.04)', border: '1px solid rgba(37,99,235,0.1)',
+              borderRadius: 16, padding: '16px', textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#2563EB', fontFamily: 'var(--font-display)', letterSpacing: '-1px' }}>
                 {Math.ceil(turnCount / 2)}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--purple)', opacity: 0.7 }}>questions asked</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Questions Asked
+              </div>
             </div>
           )}
-        </div>
+        </aside>
 
-        {/* ── Right Panel: Chat ──────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {/* Chat header */}
-          <div style={{
-            padding: '14px 24px',
-            borderBottom: '1px solid var(--border)',
-            background: '#fff',
-            display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'var(--purple)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
-              </svg>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500, fontSize: 14, color: 'var(--navy)' }}>The Inquisitor</div>
-              <div style={{ fontSize: 12, color: isWaiting ? 'var(--purple)' : 'var(--green-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: isWaiting ? 'var(--purple)' : 'var(--green)', display: 'inline-block' }} />
-                {isWaiting ? 'Thinking...' : 'Online'}
-              </div>
-            </div>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--slate)', background: 'var(--bg-subtle)', padding: '4px 10px', borderRadius: 4, border: '1px solid var(--border)' }}>
-              BM / EN / Manglish
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {messages.length === 0 && !isWaiting && (
-              <div style={{ textAlign: 'center', color: 'var(--slate)', marginTop: 40, fontSize: 14 }}>
-                Starting your interview...
-              </div>
-            )}
-
-            {messages.map(msg => (
-              <div
-                key={msg.id}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: msg.role === 'candidate' ? 'flex-end' : 'flex-start',
-                }}
-              >
+        {/* ── CHAT PANEL ── */}
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#FFFFFF', position: 'relative' }}>
+          
+          {/* Message List */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '40px 60px', display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {messages.map((msg) => (
+              <div key={msg.id} style={{ 
+                display: 'flex', 
+                flexDirection: msg.role === 'candidate' ? 'row-reverse' : 'row',
+                gap: 16,
+                alignItems: 'flex-start'
+              }}>
+                {/* Agent Avatar */}
                 {msg.role === 'inquisitor' && (
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{
-                      width: 28, height: 28, borderRadius: '50%',
-                      background: 'var(--purple)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, marginTop: 2,
-                    }}>
-                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="bubble-ai">
-                        {msg.content || (msg.isStreaming ? '' : '')}
-                        {msg.isStreaming && (
-                          <span style={{
-                            display: 'inline-block', width: 2, height: 14,
-                            background: 'var(--purple)', marginLeft: 2, verticalAlign: 'middle',
-                            animation: 'cursor-blink 0.8s infinite',
-                          }} />
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--slate)', marginTop: 4, marginLeft: 2 }}>
-                        The Inquisitor · now
-                      </div>
-                    </div>
+                  <div style={{ 
+                    width: 32, height: 32, borderRadius: 8, background: '#2563EB', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                  }}>
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
+                    </svg>
                   </div>
                 )}
-
-                {msg.role === 'candidate' && (
-                  <div>
-                    <div className="bubble-candidate">{msg.content}</div>
-                    <div style={{ fontSize: 11, color: 'var(--slate)', marginTop: 4, textAlign: 'right' }}>
-                      {candidateName} · now
-                    </div>
+                
+                <div style={{ maxWidth: '75%' }}>
+                  <div style={{ 
+                    padding: '16px 20px', borderRadius: 20,
+                    background: msg.role === 'candidate' ? '#F3F4F6' : '#FFFFFF',
+                    color: '#0A0C12',
+                    border: msg.role === 'candidate' ? '1.5px solid #E5E7EB' : '1.5px solid #2563EB20',
+                    fontSize: 15, lineHeight: 1.6, fontFamily: 'var(--font-body)',
+                    boxShadow: msg.role === 'inquisitor' ? '0 4px 20px rgba(37,99,235,0.03)' : 'none',
+                    position: 'relative'
+                  }}>
+                    {msg.content}
+                    {msg.isStreaming && (
+                      <span style={{
+                        display: 'inline-block', width: 2, height: 16,
+                        background: '#2563EB', marginLeft: 4, verticalAlign: 'middle',
+                        animation: 'cursor-blink 0.8s infinite',
+                      }} />
+                    )}
                   </div>
-                )}
+                  <div style={{ 
+                    fontSize: 11, fontWeight: 700, color: '#9CA3AF', marginTop: 8, 
+                    textAlign: msg.role === 'candidate' ? 'right' : 'left',
+                    fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.4px'
+                  }}>
+                    {msg.role === 'candidate' ? candidateName : 'The Inquisitor'} · JUST NOW
+                  </div>
+                </div>
               </div>
             ))}
-
-            {/* Typing indicator */}
+            
+            {/* Thinking indicator */}
             {isWaiting && messages[messages.length - 1]?.role !== 'inquisitor' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: 'var(--purple)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/>
-                  </svg>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/></svg>
                 </div>
-                <div className="bubble-ai" style={{ display: 'flex', gap: 5, padding: '12px 16px' }}>
+                <div style={{ display: 'flex', gap: 6, padding: '12px 20px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20 }}>
                   <div className="typing-dot" />
-                  <div className="typing-dot" />
-                  <div className="typing-dot" />
+                  <div className="typing-dot" style={{ animationDelay: '0.2s' }} />
+                  <div className="typing-dot" style={{ animationDelay: '0.4s' }} />
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Zone */}
-          {state === 'chatting' && (
-            <div style={{
-              padding: '16px 24px',
-              borderTop: '1px solid var(--border)',
-              background: '#fff',
-            }}>
-              <div style={{
+          {/* Input Area */}
+          <div style={{ 
+            padding: '24px 60px 48px', 
+            background: 'linear-gradient(180deg, transparent 0%, #FFFFFF 100%)',
+            borderTop: '1px solid #E5E7EB'
+          }}>
+            {state === 'chatting' && (
+              <div style={{ 
+                position: 'relative',
+                background: '#FFFFFF',
+                border: '1.5px solid #2563EB40',
+                borderRadius: 20,
+                padding: '12px 16px',
+                boxShadow: '0 10px 40px rgba(37,99,235,0.06)',
                 display: 'flex', gap: 12, alignItems: 'flex-end',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '10px 14px',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'border-color 0.15s, box-shadow 0.15s',
-              }}
-                onFocusCapture={e => {
-                  const parent = (e.target as HTMLElement).closest('div') as HTMLElement;
-                  if (parent) { parent.style.borderColor = 'var(--purple)'; parent.style.boxShadow = '0 0 0 3px rgba(83,58,253,0.08)'; }
-                }}
-                onBlurCapture={e => {
-                  const parent = (e.target as HTMLElement).closest('div') as HTMLElement;
-                  if (parent) { parent.style.borderColor = 'var(--border)'; parent.style.boxShadow = 'var(--shadow-sm)'; }
-                }}
-              >
+                transition: 'all 0.2s ease'
+              }} id="input-container">
                 <textarea
                   ref={inputRef}
-                  id="answer-input"
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type your answer... (Enter to send)"
+                  placeholder="Share your experience here... (Enter to send)"
                   disabled={isWaiting}
                   rows={1}
                   style={{
-                    flex: 1, border: 'none', outline: 'none',
-                    resize: 'none', background: 'transparent',
-                    fontSize: 15, color: 'var(--navy)',
-                    lineHeight: 1.5, minHeight: 24, maxHeight: 120,
-                    fontFamily: 'inherit',
+                    flex: 1, border: 'none', outline: 'none', resize: 'none', width: '100%',
+                    fontSize: 16, lineHeight: 1.5, background: 'transparent',
+                    fontFamily: 'var(--font-body)', color: '#0A0C12',
+                    minHeight: 24, maxHeight: 120
+                  }}
+                  onFocus={() => {
+                    const el = document.getElementById('input-container');
+                    if (el) { el.style.borderColor = '#2563EB'; el.style.boxShadow = '0 10px 40px rgba(37,99,235,0.12)'; }
+                  }}
+                  onBlur={() => {
+                    const el = document.getElementById('input-container');
+                    if (el) { el.style.borderColor = '#2563EB40'; el.style.boxShadow = '0 10px 40px rgba(37,99,235,0.06)'; }
                   }}
                 />
-                <button
+                <button 
                   onClick={handleSend}
                   disabled={!inputValue.trim() || isWaiting}
-                  style={{
-                    width: 34, height: 34, borderRadius: '50%',
-                    background: inputValue.trim() && !isWaiting ? 'var(--purple)' : 'var(--border)',
-                    border: 'none',
-                    cursor: inputValue.trim() && !isWaiting ? 'pointer' : 'not-allowed',
+                  style={{ 
+                    width: 44, height: 44, borderRadius: 12, border: 'none',
+                    background: inputValue.trim() && !isWaiting ? '#2563EB' : '#F1F5F9',
+                    color: inputValue.trim() && !isWaiting ? '#FFFFFF' : '#94A3B8',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0, transition: 'background 0.15s',
+                    cursor: inputValue.trim() && !isWaiting ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    flexShrink: 0
                   }}
                 >
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--slate)', textAlign: 'center', marginTop: 8 }}>
-                Press Enter to send · Shift+Enter for new line
+            )}
+            {state === 'closing' && (
+              <div style={{ textAlign: 'center', padding: '20px', borderRadius: 20, background: 'rgba(16,185,129,0.05)', color: '#059669', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-body)' }}>
+                Session complete. Finalizing responses...
               </div>
+            )}
+            <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, fontWeight: 600, color: '#94A3B8', fontFamily: 'var(--font-body)' }}>
+              Interview is recorded for evaluation · Shift + Enter for new line
             </div>
-          )}
-
-          {state === 'closing' && (
-            <div style={{
-              padding: '14px 24px', borderTop: '1px solid var(--border)',
-              textAlign: 'center', color: 'var(--slate)', fontSize: 14, background: '#fff',
-            }}>
-              Interview complete. Generating your verdict...
-            </div>
-          )}
-        </div>
+          </div>
+        </main>
       </div>
 
       <style>{`
         @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: #2563EB; animation: typing-bounce 1.2s infinite ease-in-out; }
+        @keyframes typing-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
       `}</style>
     </div>
   );

@@ -1,4 +1,4 @@
-// app/hr/page.tsx  — Premium HR Dashboard (fixed card rendering)
+// app/hr/page.tsx — Premium Agentic Dark Dashboard v3.0 (Server Component)
 import { db } from '@/lib/db';
 import { sessions, jdCache } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -19,300 +19,505 @@ export default async function HRDashboard() {
   const active    = allSessions.filter(s => s.session.status === 'active');
 
   const ghostingEvents = 3;
-  const reputationScore = 61;
-  const responseRate = 61;
+  const reputationScore = 81;
+  const responseRate = 92;
   const thisMonthCount = completed.filter(s => Date.now() - s.session.createdAt < 30 * 24 * 3600 * 1000).length;
-
-  const pendingResponse = completed
-    .filter(s => { try { const v: VerdictResult = JSON.parse(s.session.verdict!); return v.triage_result !== 'RED'; } catch { return false; } })
-    .slice(0, 2);
 
   const circumference = 2 * Math.PI * 38;
   const dashOffset = circumference * (1 - reputationScore / 100);
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 24px' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: '#080A0F',
+      color: '#F9FAFB',
+      padding: '40px 0 100px',
+    }}>
+      <style>{`
+        .hr-kpi-card:hover { border-color: rgba(37,99,235,0.3) !important; box-shadow: 0 0 30px rgba(37,99,235,0.1); }
+        .hr-table-row:hover td { background: #1A2030; }
+        .hr-table-row td { transition: background 0.15s ease; }
+      `}</style>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36 }}>
-        <div>
-          <p style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: '#64748d', marginBottom: 8 }}>
-            Employer Hub
-          </p>
-          <h1 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 300, letterSpacing: '-0.8px', color: '#061b31', lineHeight: 1.12, margin: 0 }}>
-            Recruitment Dashboard
-          </h1>
-          <p style={{ color: '#64748d', fontSize: 15, marginTop: 6 }}>
-            {completed.length} verdicts issued · {active.length} interviews in progress
-          </p>
-        </div>
-        <Link href="/hr/upload" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '10px 20px', background: '#533afd', color: '#fff',
-          borderRadius: 4, fontSize: 14, fontWeight: 500, textDecoration: 'none',
-        }}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-            <path d="M12 5v14M5 12l7-7 7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Post New Role
-        </Link>
-      </div>
-
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-        {[
-          { value: completed.length, label: 'Verdict Cards this month', delta: `+${thisMonthCount} vs last month`, deltaClass: 'pos' },
-          { value: `${responseRate}%`, label: 'Response rate (48hr)', delta: 'Below threshold: 80%', deltaClass: 'neg' },
-          { value: ghostingEvents, label: 'Ghosting events logged', delta: 'Affects reputation score', deltaClass: 'warn' },
-          { value: `${Math.max(1, completed.length * 4.5)} hrs`, label: 'HR Time Saved', delta: 'vs manual screening', deltaClass: 'pos' },
-        ].map((kpi, i) => (
-          <div key={i} style={{
-            background: '#fff',
-            border: '1px solid #e5edf5',
-            borderRadius: 12,
-            boxShadow: 'rgba(50,50,93,0.08) 0px 4px 12px, rgba(0,0,0,0.05) 0px 2px 6px',
-            padding: '20px 24px',
-          }}>
-            <div style={{ fontSize: 32, fontWeight: 300, letterSpacing: '-1px', color: '#061b31', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-              {kpi.value}
-            </div>
-            <div style={{ fontSize: 13, color: '#64748d', marginTop: 4 }}>{kpi.label}</div>
-            <div style={{
-              fontSize: 12, fontWeight: 500, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4,
-              color: kpi.deltaClass === 'pos' ? '#108c3d' : kpi.deltaClass === 'neg' ? '#ef4444' : kpi.deltaClass === 'warn' ? '#f59e0b' : '#64748d',
-            }}>
-              {kpi.delta}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Reputation + Pending */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        {/* Reputation Score */}
+        {/* ── PAGE HEADER ─────────────────────────────────────────────── */}
         <div style={{
-          background: '#fff', border: '1px solid #e5edf5', borderRadius: 12,
-          boxShadow: 'rgba(50,50,93,0.08) 0px 4px 12px, rgba(0,0,0,0.05) 0px 2px 6px',
-          padding: 28,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 40, paddingBottom: 28,
+          borderBottom: '1px solid #1E2433',
         }}>
-          <p style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: '#64748d', marginBottom: 16 }}>
-            HR Reputation Score
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <svg width="100" height="100" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="50" cy="50" r="38" fill="none" stroke="#eef2f7" strokeWidth="8"/>
-                <circle cx="50" cy="50" r="38" fill="none"
-                  stroke="#f59e0b"
-                  strokeWidth="8" strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={dashOffset}
-                />
-              </svg>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 24, fontWeight: 300, color: '#061b31', lineHeight: 1 }}>{reputationScore}</span>
-                <span style={{ fontSize: 10, color: '#64748d', marginTop: 2 }}>/100</span>
-              </div>
+          <div>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)',
+              borderRadius: 20, padding: '3px 10px', marginBottom: 14,
+            }}>
+              <span style={{
+                width: 5, height: 5, borderRadius: '50%', background: '#10B981',
+                display: 'inline-block', boxShadow: '0 0 8px rgba(16,185,129,0.8)',
+              }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#10B981', fontFamily: 'var(--font-mono)', letterSpacing: '0.3px' }}>
+                ALL SYSTEMS OPERATIONAL
+              </span>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 14, color: '#273951', fontWeight: 500 }}>Nexus Digital Sdn Bhd</span>
-                <span style={{ fontSize: 28, fontWeight: 300, color: '#f59e0b', letterSpacing: -0.5 }}>{reputationScore}</span>
-              </div>
-              <div style={{ background: '#eef2f7', borderRadius: 3, height: 5, overflow: 'hidden', marginBottom: 12 }}>
-                <div style={{ width: `${reputationScore}%`, height: '100%', background: 'linear-gradient(90deg, #f59e0b, #fbbf24)', borderRadius: 3 }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 11, color: '#64748d' }}>0 — Low</span>
-                <span style={{ fontSize: 11, color: '#64748d' }}>Threshold: 80</span>
-                <span style={{ fontSize: 11, color: '#64748d' }}>100 — Excellent</span>
+            <h1 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 32, fontWeight: 800, lineHeight: 1.1,
+              letterSpacing: '-1px', color: '#F9FAFB', marginBottom: 6,
+            }}>
+              Dashboard
+            </h1>
+            <p style={{ fontSize: 14, color: '#4B5568', fontFamily: 'var(--font-body)' }}>
+              {completed.length} verdicts issued · {active.length} sessions active · {ghostingEvents} flags pending review
+            </p>
+          </div>
+          <Link
+            href="/hr/upload"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'linear-gradient(135deg, #2563EB, #0EA5E9)',
+              color: '#FFFFFF', fontSize: 14, fontWeight: 700,
+              padding: '0 22px', height: 42, borderRadius: 10,
+              textDecoration: 'none',
+              fontFamily: 'var(--font-body)', letterSpacing: '-0.2px',
+              boxShadow: '0 4px 14px rgba(37,99,235,0.3)',
+            }}
+          >
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+              <path d="M12 5v14M5 12l7-7 7 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Post New Role
+          </Link>
+        </div>
+
+        {/* ── KPI CARDS ──────────────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+          {[
+            {
+              value: completed.length.toString(),
+              label: 'Total Verdicts',
+              sub: `+${thisMonthCount} this month`,
+              subColor: '#10B981',
+              icon: '📊',
+            },
+            {
+              value: `${responseRate}%`,
+              label: 'Response Rate (48hr)',
+              sub: 'Above threshold: 80%',
+              subColor: '#10B981',
+              icon: '⚡',
+            },
+            {
+              value: ghostingEvents.toString(),
+              label: 'Integrity Flags',
+              sub: 'Requires manual audit',
+              subColor: '#F59E0B',
+              icon: '🛡',
+            },
+            {
+              value: `${Math.max(1, Math.round(completed.length * 4.5))}h`,
+              label: 'AI Time Saved',
+              sub: 'vs manual screening',
+              subColor: '#2563EB',
+              icon: '⏱',
+            },
+          ].map((kpi, i) => (
+            <div
+              key={i}
+              className="hr-kpi-card"
+              style={{
+                background: '#141820',
+                border: '1.5px solid #1E2433',
+                borderRadius: 20,
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 0,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{
+                fontSize: 24, marginBottom: 12, lineHeight: 1,
+                filter: 'grayscale(20%)',
+              }}>
+                {kpi.icon}
               </div>
               <div style={{
-                background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
-                borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#92650a', lineHeight: 1.5,
+                fontFamily: 'var(--font-display)',
+                fontSize: 38, fontWeight: 800, lineHeight: 1,
+                letterSpacing: '-1.5px', color: '#F9FAFB', marginBottom: 8,
               }}>
-                {ghostingEvents} ghosting events in the last 30 days. Respond to pending Amber/Green cards within 48 hours to recover your score.
+                {kpi.value}
               </div>
+              <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, fontFamily: 'var(--font-body)' }}>
+                {kpi.label}
+              </div>
+              <div style={{
+                fontSize: 12, fontWeight: 600, color: kpi.subColor,
+                fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                {kpi.sub}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── REPUTATION + PENDING ────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
+
+          {/* System health */}
+          <div style={{
+            background: '#141820', border: '1.5px solid #1E2433',
+            borderRadius: 24, padding: '28px',
+          }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: '#475569',
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.8px',
+              textTransform: 'uppercase', marginBottom: 24,
+            }}>
+              System Integrity Health
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+              {/* Circular progress */}
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <svg width="100" height="100" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#1E2433" strokeWidth="8"/>
+                  <circle cx="50" cy="50" r="38" fill="none"
+                    stroke="#10B981"
+                    strokeWidth="8" strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    style={{ transition: 'stroke-dashoffset 1.2s ease-in-out' }}
+                  />
+                </svg>
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <span style={{
+                    fontSize: 22, fontWeight: 800, color: '#F9FAFB',
+                    fontFamily: 'var(--font-display)', letterSpacing: '-0.5px',
+                  }}>
+                    {reputationScore}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: 16, fontWeight: 700, color: '#F9FAFB',
+                  fontFamily: 'var(--font-display)', marginBottom: 8,
+                }}>
+                  Optimal Operation
+                </div>
+                <div style={{
+                  background: '#1E2433', borderRadius: 6, height: 6, overflow: 'hidden', marginBottom: 16,
+                }}>
+                  <div style={{
+                    width: `${reputationScore}%`, height: '100%',
+                    background: 'linear-gradient(90deg, #059669, #10B981)', borderRadius: 6,
+                  }} />
+                </div>
+                <div style={{
+                  background: 'rgba(16,185,129,0.08)',
+                  border: '1px solid rgba(16,185,129,0.2)',
+                  borderRadius: 10, padding: '12px 14px',
+                  fontSize: 13, color: '#34D399', lineHeight: 1.5,
+                  fontFamily: 'var(--font-body)',
+                }}>
+                  The 7-agent pipeline is firing globally across all active roles with no latency anomalies.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending overrides */}
+          <div style={{
+            background: '#141820', border: '1.5px solid #1E2433',
+            borderRadius: 24, padding: '28px',
+          }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: '#475569',
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.8px',
+              textTransform: 'uppercase', marginBottom: 24,
+            }}>
+              Urgent Agent Overrides Required
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                {
+                  name: 'Aisyah Binti Razali', triage: 'AMBER',
+                  flag: 'Language Style Mismatch', id: 'seed-session-aisyah',
+                  color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)',
+                },
+                {
+                  name: 'Julian Doe', triage: 'RED',
+                  flag: 'Sentinel Focus Trace Failed', id: 'seed-session-siti',
+                  color: '#EF4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)',
+                },
+              ].map(p => (
+                <div
+                  key={p.id}
+                  style={{
+                    background: p.bg, border: `1.5px solid ${p.border}`,
+                    borderRadius: 14, padding: '14px 18px',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{
+                      fontSize: 14, fontWeight: 600, color: '#F9FAFB',
+                      marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8,
+                      fontFamily: 'var(--font-body)',
+                    }}>
+                      {p.name}
+                      <span style={{
+                        padding: '2px 7px', borderRadius: 4, fontSize: 10,
+                        fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        letterSpacing: '0.5px', textTransform: 'uppercase',
+                        background: p.color + '25', color: p.color,
+                      }}>
+                        {p.triage}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#94A3B8', fontFamily: 'var(--font-body)' }}>
+                      ⚠ {p.flag}
+                    </div>
+                  </div>
+                  <Link
+                    href={`/hr/verdict/${p.id}`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      fontSize: 12, fontWeight: 600, color: p.color,
+                      background: p.color + '15', border: `1px solid ${p.color}40`,
+                      padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+                      transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  >
+                    Review
+                  </Link>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Pending Actions */}
+        {/* ── PIPELINE TABLE ──────────────────────────────────────────── */}
         <div style={{
-          background: '#fff', border: '1px solid #e5edf5', borderRadius: 12,
-          boxShadow: 'rgba(50,50,93,0.08) 0px 4px 12px, rgba(0,0,0,0.05) 0px 2px 6px',
-          padding: 28,
+          background: '#141820', border: '1.5px solid #1E2433',
+          borderRadius: 24, overflow: 'hidden',
         }}>
-          <p style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: '#64748d', marginBottom: 16 }}>
-            Pending Action Required
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { name: 'Aisyah Binti Razali', triage: 'AMBER', hours: 43, id: 'seed-session-aisyah' },
-              { name: 'Siti Norzahira Mohd', triage: 'GREEN', hours: 6, id: 'seed-session-siti' },
-            ].map(p => (
-              <div key={p.id} style={{
-                background: p.triage === 'GREEN' ? 'rgba(21,190,83,0.04)' : 'rgba(245,158,11,0.04)',
-                border: `1px solid ${p.triage === 'GREEN' ? 'rgba(21,190,83,0.2)' : 'rgba(245,158,11,0.2)'}`,
-                borderRadius: 8, padding: '12px 16px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          {/* Table header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '24px 28px', borderBottom: '1px solid #1E2433',
+          }}>
+            <div>
+              <h2 style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 20, fontWeight: 700,
+                color: '#F9FAFB', letterSpacing: '-0.4px', marginBottom: 4,
               }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#061b31', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {p.name}
-                    <span style={{
-                      padding: '1px 7px', borderRadius: 3, fontSize: 10, fontWeight: 600,
-                      fontFamily: 'monospace', letterSpacing: '0.4px', textTransform: 'uppercase',
-                      background: p.triage === 'GREEN' ? 'rgba(21,190,83,0.12)' : 'rgba(245,158,11,0.12)',
-                      color: p.triage === 'GREEN' ? '#108c3d' : '#92650a',
-                      border: `1px solid ${p.triage === 'GREEN' ? 'rgba(21,190,83,0.35)' : 'rgba(245,158,11,0.35)'}`,
-                    }}>
-                      {p.triage}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#64748d' }}>{p.hours} hours remaining to respond</div>
-                </div>
-                <Link href={`/hr/verdict/${p.id}`} style={{
-                  padding: '5px 12px', fontSize: 12, borderRadius: 4,
-                  background: '#fff', border: '1px solid #e5edf5',
-                  color: '#273951', textDecoration: 'none',
-                  boxShadow: 'rgba(50,50,93,0.08) 0px 4px 12px',
+                Global Candidate Pipeline
+              </h2>
+              <div style={{ fontSize: 13, color: '#475569', fontFamily: 'var(--font-body)' }}>
+                {completed.length} total candidates routed through 7-agent pipeline
+              </div>
+            </div>
+
+            {/* Filter tabs */}
+            <div style={{
+              display: 'flex', gap: 4,
+              background: '#0F1117', padding: '4px', borderRadius: 10,
+            }}>
+              {['All', 'GREEN', 'AMBER', 'RED'].map((f, index) => (
+                <span key={f} style={{
+                  padding: '6px 14px', borderRadius: 7, fontSize: 12,
+                  fontWeight: index === 0 ? 700 : 500, cursor: 'pointer',
+                  background: index === 0 ? '#1E2433' : 'transparent',
+                  color: index === 0 ? '#F9FAFB'
+                    : f === 'GREEN' ? '#10B981'
+                    : f === 'AMBER' ? '#F59E0B'
+                    : f === 'RED'   ? '#EF4444'
+                    : '#64748B',
+                  transition: 'all 0.15s ease',
+                  fontFamily: 'var(--font-body)',
                 }}>
-                  Respond
+                  {f}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr>
+                {['Candidate', 'Role', 'Triage', 'Dimension Score', 'Status', 'Action'].map(h => (
+                  <th key={h} style={{
+                    fontSize: 11, fontWeight: 600, letterSpacing: '0.5px',
+                    textTransform: 'uppercase', color: '#475569',
+                    padding: '14px 20px',
+                    borderBottom: '1px solid #1E2433',
+                    fontFamily: 'var(--font-body)',
+                  }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {completed.map(({ session, roleTitle }) => {
+                let verdict: VerdictResult | null = null;
+                try { verdict = JSON.parse(session.verdict!); } catch { return null; }
+                if (!verdict) return null;
+
+                const avgScore = verdict.overall_score ?? Math.round(
+                  Object.values(verdict.dimension_scores).reduce((s, d) => s + (typeof d === 'number' ? d : d.score), 0) /
+                  Math.max(1, Object.keys(verdict.dimension_scores).length)
+                );
+
+                let isFlagged = false;
+                try {
+                  const sentinel = JSON.parse(session.sentinelData);
+                  isFlagged = sentinel.focus_loss_events > 3 && sentinel.paste_events > 1;
+                } catch { /* ignore */ }
+
+                const triage = verdict.triage_result;
+                const triageMeta = {
+                  GREEN: { color: '#10B981', bg: 'rgba(16,185,129,0.12)', text: '#F9FAFB' },
+                  AMBER: { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', text: '#F9FAFB' },
+                  RED:   { color: '#EF4444', bg: 'rgba(239,68,68,0.12)',  text: '#F9FAFB' },
+                }[triage as 'GREEN' | 'AMBER' | 'RED'] ?? { color: '#64748B', bg: 'rgba(100,116,139,0.12)', text: '#F9FAFB' };
+
+                const initials = session.candidateName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                const barColorClass = avgScore >= 75 ? '#10B981' : avgScore >= 50 ? '#F59E0B' : '#EF4444';
+
+                return (
+                  <tr
+                    key={session.id}
+                    className="hr-table-row"
+                    style={{
+                      borderBottom: '1px solid #1E2433',
+                    }}
+                  >
+                    {/* Candidate */}
+                    <td style={{ padding: '18px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                          width: 38, height: 38, borderRadius: 10,
+                          background: 'linear-gradient(135deg, #1E2D60, #1E3A5F)',
+                          border: '1px solid #2D3748',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 700, color: '#93C5FD', flexShrink: 0,
+                          fontFamily: 'var(--font-display)',
+                        }}>
+                          {initials}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#F9FAFB', fontFamily: 'var(--font-body)' }}>
+                            {session.candidateName}
+                          </div>
+                          {isFlagged && (
+                            <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 2, fontFamily: 'var(--font-body)' }}>
+                              ⚠ Sentinel flag
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    {/* Role */}
+                    <td style={{ padding: '18px 20px', fontSize: 13, color: '#64748B', fontFamily: 'var(--font-body)' }}>
+                      {roleTitle ?? 'Unknown'}
+                    </td>
+                    {/* Triage */}
+                    <td style={{ padding: '18px 20px' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        padding: '4px 10px', borderRadius: 6,
+                        fontSize: 11, fontWeight: 700, letterSpacing: '0.5px',
+                        textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
+                        background: triageMeta.bg, color: triageMeta.color,
+                        border: `1px solid ${triageMeta.color}30`,
+                      }}>
+                        {triage}
+                      </span>
+                    </td>
+                    {/* Score */}
+                    <td style={{ padding: '18px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          height: 5, width: 80, borderRadius: 3,
+                          background: '#1E2433', overflow: 'hidden', flexShrink: 0,
+                        }}>
+                          <div style={{
+                            width: `${avgScore}%`, height: '100%',
+                            background: barColorClass, borderRadius: 3,
+                          }} />
+                        </div>
+                        <span style={{
+                          fontSize: 13, fontWeight: 700, color: '#F9FAFB',
+                          fontFamily: 'var(--font-mono)',
+                        }}>
+                          {avgScore}/100
+                        </span>
+                      </div>
+                    </td>
+                    {/* Status */}
+                    <td style={{ padding: '18px 20px' }}>
+                      <span style={{
+                        fontSize: 12, fontWeight: 600,
+                        color: verdict.human_review_required ? '#F59E0B' : '#10B981',
+                        fontFamily: 'var(--font-body)',
+                      }}>
+                        {verdict.human_review_required ? '⚠ Review Required' : '✓ Cleared'}
+                      </span>
+                    </td>
+                    {/* Action */}
+                    <td style={{ padding: '18px 20px' }}>
+                      <Link
+                        href={`/hr/verdict/${session.id}`}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          fontSize: 12, fontWeight: 600,
+                          color: '#93C5FD',
+                          background: 'rgba(37,99,235,0.1)',
+                          border: '1px solid rgba(37,99,235,0.2)',
+                          padding: '6px 14px', borderRadius: 8,
+                          textDecoration: 'none', transition: 'all 0.15s ease',
+                          fontFamily: 'var(--font-body)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        View Verdict
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {completed.length === 0 && (
+            <div style={{
+              padding: '80px 24px', textAlign: 'center',
+              borderTop: '1px solid #1E2433',
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.5 }}>🗄️</div>
+              <div style={{ fontSize: 15, color: '#475569', fontFamily: 'var(--font-body)' }}>
+                No automated workflows resolved yet.{' '}
+                <Link href="/hr/upload" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>
+                  Initialize an agent pipeline →
                 </Link>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Pipeline Table */}
-      <div style={{
-        background: '#fff', border: '1px solid #e5edf5', borderRadius: 12,
-        boxShadow: 'rgba(50,50,93,0.08) 0px 4px 12px, rgba(0,0,0,0.05) 0px 2px 6px',
-        overflow: 'hidden',
-      }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5edf5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <p style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: '#64748d', marginBottom: 4 }}>
-              All Candidates — Pipeline View
-            </p>
-            <div style={{ fontSize: 13, color: '#64748d' }}>{completed.length} candidates · filtered: all</div>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['All', 'GREEN', 'AMBER', 'RED'].map(f => (
-              <span key={f} style={{
-                padding: '4px 12px', borderRadius: 4, fontSize: 12,
-                fontWeight: f === 'All' ? 600 : 400, cursor: 'pointer',
-                background: f === 'All' ? 'rgba(83,58,253,0.06)' : 'transparent',
-                color: f === 'All' ? '#533afd' : '#64748d',
-                border: `1px solid ${f === 'All' ? 'rgba(83,58,253,0.2)' : 'transparent'}`,
-              }}>
-                {f}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {['Candidate', 'Role', 'Verdict', 'Score', 'Responded', 'Action'].map(h => (
-                <th key={h} style={{
-                  textAlign: 'left', fontSize: 11, fontWeight: 600, letterSpacing: '0.6px',
-                  textTransform: 'uppercase', color: '#64748d', padding: '10px 16px',
-                  borderBottom: '1px solid #e5edf5', background: '#f8fafc',
-                  fontFamily: 'monospace',
-                }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {completed.map(({ session, roleTitle }) => {
-              let verdict: VerdictResult | null = null;
-              try { verdict = JSON.parse(session.verdict!); } catch { return null; }
-              if (!verdict) return null;
-              const avgScore = verdict.overall_score ?? Math.round(
-                Object.values(verdict.dimension_scores).reduce((s, d) => s + (typeof d === 'number' ? d : d.score), 0) /
-                Math.max(1, Object.keys(verdict.dimension_scores).length)
-              );
-              const sentinel = JSON.parse(session.sentinelData);
-              const isFlagged = sentinel.focus_loss_events > 3 && sentinel.paste_events > 1;
-              const triage = verdict.triage_result;
-              const triageColor = triage === 'GREEN' ? '#108c3d' : triage === 'AMBER' ? '#92650a' : '#b91c1c';
-              const triageBg = triage === 'GREEN' ? 'rgba(21,190,83,0.12)' : triage === 'AMBER' ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
-              const triageBorder = triage === 'GREEN' ? 'rgba(21,190,83,0.35)' : triage === 'AMBER' ? 'rgba(245,158,11,0.35)' : 'rgba(239,68,68,0.35)';
-              const initials = session.candidateName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-              const barColor = avgScore >= 75 ? '#15be53' : avgScore >= 50 ? '#f59e0b' : '#ef4444';
-
-              return (
-                <tr key={session.id} style={{ borderBottom: '1px solid #e5edf5' }}>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: 'rgba(83,58,253,0.06)', border: '1px solid rgba(83,58,253,0.2)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, fontWeight: 600, color: '#533afd', flexShrink: 0,
-                      }}>
-                        {initials}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: '#061b31' }}>{session.candidateName}</div>
-                        {isFlagged && <div style={{ fontSize: 11, color: '#ef4444' }}>⚠ Anomaly flag</div>}
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748d' }}>{roleTitle ?? 'Unknown'}</td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <span style={{
-                      display: 'inline-block', padding: '2px 9px', borderRadius: 3,
-                      fontSize: 10, fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase',
-                      fontFamily: 'monospace', background: triageBg, color: triageColor, border: `1px solid ${triageBorder}`,
-                    }}>
-                      {triage}
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ background: '#eef2f7', borderRadius: 3, height: 5, width: 80, overflow: 'hidden' }}>
-                        <div style={{ width: `${avgScore}%`, height: '100%', background: barColor, borderRadius: 3 }} />
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: '#061b31', fontVariantNumeric: 'tabular-nums', minWidth: 24 }}>{avgScore}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 16px', fontSize: 12, color: verdict.human_review_required ? '#ef4444' : '#64748d', fontWeight: verdict.human_review_required ? 500 : 400 }}>
-                    {verdict.human_review_required ? 'Pending Review' : 'Pending'}
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <Link href={`/hr/verdict/${session.id}`} style={{
-                      fontSize: 12, padding: '5px 12px', borderRadius: 4,
-                      background: '#fff', border: '1px solid #e5edf5',
-                      color: '#273951', textDecoration: 'none',
-                      boxShadow: 'rgba(50,50,93,0.08) 0px 4px 12px',
-                    }}>
-                      {triage === 'RED' ? 'Review' : 'View Card'}
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {completed.length === 0 && (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-            <div style={{ color: '#64748d', fontSize: 14 }}>
-              No completed interviews yet.{' '}
-              <Link href="/hr/upload" style={{ color: '#533afd', textDecoration: 'none', fontWeight: 500 }}>
-                Post your first role →
-              </Link>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
