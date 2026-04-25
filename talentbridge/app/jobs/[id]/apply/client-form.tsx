@@ -23,7 +23,7 @@ function validate(fields: { email: string; phone: string; linkedin: string }) {
 
   const clean = fields.phone?.replace(/\D/g, '');
 
-  if (!clean || clean.length < 7 || clean.length > 15) {
+  if (!clean && (clean.length < 7 || clean.length > 15)) {
     errors.phone = 'Invalid phone number';
   }
 
@@ -203,7 +203,7 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
               {fieldErrors.email && <p style={{ color: '#DC2626', fontSize: 12, marginTop: 4 }}>{fieldErrors.email}</p>}
             </div>
             <div>
-              <label style={labelStyle}>Phone</label>
+              <label style={labelStyle}>Phone *</label>
               <input
                 type="tel" value={form.phone} onChange={e => set('phone', e.target.value)}
                 placeholder="+60 12 345 6789" style={inputStyle}
