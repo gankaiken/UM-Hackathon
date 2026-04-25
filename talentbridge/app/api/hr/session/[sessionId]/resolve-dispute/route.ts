@@ -4,6 +4,8 @@ import { sessions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { DisputeResolution } from '@/lib/types';
 import { assertHrOwnsSession, requireHrUser } from '@/lib/hrAuth';
+import { getRequestIp, logAuditEvent } from '@/lib/security';
+import { requireCsrf } from '@/lib/csrf';
 
 export async function POST(
   req: NextRequest,
@@ -13,6 +15,8 @@ export async function POST(
     const { sessionId } = await params;
     const user = requireHrUser(req);
     if (user instanceof NextResponse) return user;
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
 
     const { resolution, notes } = await req.json();
 
@@ -37,6 +41,17 @@ export async function POST(
       .where(eq(sessions.id, sessionId))
       .run();
 
+    await logAuditEvent({
+      actorType: 'hr',
+      actorId: user.id,
+      action: 'hr.resolve_dispute',
+      status: 'success',
+      ipAddress: getRequestIp(req),
+      targetType: 'session',
+      targetId: sessionId,
+      details: { resolution },
+    });
+
     return NextResponse.json({
       success: true,
       disputeResolvedAt: now,
@@ -44,6 +59,7 @@ export async function POST(
       disputeStatus: 'resolved',
     });
   } catch (error) {
+    await logAuditEvent({ actorType: 'hr', action: 'hr.resolve_dispute', status: 'failure', ipAddress: getRequestIp(req), targetType: 'session', targetId: (await params).sessionId });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

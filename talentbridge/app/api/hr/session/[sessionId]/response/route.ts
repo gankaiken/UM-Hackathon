@@ -4,6 +4,8 @@ import { sessions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { HrResponse } from '@/lib/types';
 import { assertHrOwnsSession, requireHrUser } from '@/lib/hrAuth';
+import { getRequestIp, logAuditEvent } from '@/lib/security';
+import { requireCsrf } from '@/lib/csrf';
 
 const VALID_RESPONSES: HrResponse[] = ['offer', 'hold', 'reject'];
 
@@ -15,6 +17,8 @@ export async function POST(
     const { sessionId } = await params;
     const user = requireHrUser(req);
     if (user instanceof NextResponse) return user;
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
 
     const body = await req.json();
     const response = body?.response as HrResponse | undefined;
@@ -39,6 +43,17 @@ export async function POST(
       .where(eq(sessions.id, sessionId))
       .run();
 
+    await logAuditEvent({
+      actorType: 'hr',
+      actorId: user.id,
+      action: 'hr.response',
+      status: 'success',
+      ipAddress: getRequestIp(req),
+      targetType: 'session',
+      targetId: sessionId,
+      details: { response },
+    });
+
     return NextResponse.json({
       success: true,
       sessionId,
@@ -46,6 +61,7 @@ export async function POST(
       hrRespondedAt,
     });
   } catch (error) {
+    await logAuditEvent({ actorType: 'hr', action: 'hr.response', status: 'failure', ipAddress: getRequestIp(req), targetType: 'session', targetId: (await params).sessionId });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

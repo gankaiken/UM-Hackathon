@@ -6,6 +6,8 @@ import { db } from '@/lib/db';
 import { jdCache, sessions } from '@/lib/db/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import { assertHrOwnsJd, requireHrUser } from '@/lib/hrAuth';
+import { getRequestIp, logAuditEvent } from '@/lib/security';
+import { requireCsrf } from '@/lib/csrf';
 
 export async function POST(
   req: NextRequest,
@@ -15,6 +17,8 @@ export async function POST(
     const { jdId } = await params;
     const user = requireHrUser(req);
     if (user instanceof NextResponse) return user;
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
 
     const ownership = await assertHrOwnsJd(user, jdId);
     if (!ownership.ok) return ownership.response;
@@ -46,6 +50,17 @@ export async function POST(
     }
 
     console.log(`[FillRole] Role ${jd.roleTitle} filled. ${pendingSessions.length} pending candidates notified.`);
+
+    await logAuditEvent({
+      actorType: 'hr',
+      actorId: user.id,
+      action: 'jd.fill_role',
+      status: 'success',
+      ipAddress: getRequestIp(req),
+      targetType: 'jd',
+      targetId: jdId,
+      details: { affectedCandidates: pendingSessions.length },
+    });
 
     return NextResponse.json({
       success: true,

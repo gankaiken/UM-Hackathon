@@ -4,6 +4,7 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import type { JdUploadResponse } from '@/lib/types';
+import { getCsrfTokenFromCookie } from '@/lib/clientSecurity';
 
 type UploadState = 'idle' | 'scanning' | 'qa' | 'done' | 'error';
 
@@ -56,7 +57,7 @@ export default function PostJobPage() {
     try {
       const res = await fetch('/api/jd/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfTokenFromCookie() },
         body: JSON.stringify({ jdText: jdText.trim() }),
       });
       if (tickerRef.current) clearInterval(tickerRef.current);

@@ -4,6 +4,8 @@ import { sessions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { runOrchestration } from '@/lib/agents/integrationCoordinator';
 import { assertHrOwnsSession, requireHrUser } from '@/lib/hrAuth';
+import { getRequestIp, logAuditEvent } from '@/lib/security';
+import { requireCsrf } from '@/lib/csrf';
 
 export async function GET(
   req: NextRequest,
@@ -13,6 +15,8 @@ export async function GET(
     const { sessionId } = await params;
     const user = requireHrUser(req);
     if (user instanceof NextResponse) return user;
+    const csrfError = requireCsrf(req);
+    if (csrfError) return csrfError;
 
     const ownership = await assertHrOwnsSession(user, sessionId);
     if (!ownership.ok) return ownership.response;
@@ -51,6 +55,15 @@ export async function POST(
     // Kick off orchestration in the background (or await if simple trace)
     // For demo stability, we'll await the trace mode result
     await runOrchestration(sessionId, verdict);
+    await logAuditEvent({
+      actorType: 'hr',
+      actorId: user.id,
+      action: 'hr.schedule_preview',
+      status: 'success',
+      ipAddress: getRequestIp(req),
+      targetType: 'session',
+      targetId: sessionId,
+    });
 
     const updatedSession = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     return NextResponse.json({
@@ -59,6 +72,7 @@ export async function POST(
     });
 
   } catch (error) {
+    await logAuditEvent({ actorType: 'hr', action: 'hr.schedule_preview', status: 'failure', ipAddress: getRequestIp(req), targetType: 'session', targetId: (await params).sessionId });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

@@ -7,12 +7,24 @@ const ZAI_BASE_URL = 'https://api.ilmu.ai/v1';
 const DEFAULT_MODEL = 'ilmu-glm-5.1';
 const REQUEST_TIMEOUT_MS = 45_000;
 
+export function resolveZhipuApiKey() {
+  const candidates = [
+    { name: 'ZHIPU_API_KEY', value: process.env.ZHIPU_API_KEY },
+    { name: 'ZAI_API_KEY', value: process.env.ZAI_API_KEY },
+    { name: 'Z_AI_API_KEY', value: process.env.Z_AI_API_KEY },
+  ];
+  const match = candidates.find(candidate => candidate.value?.trim());
+  return match
+    ? { name: match.name, value: match.value!.trim() }
+    : null;
+}
+
 function getApiKey(): string {
-  const key = process.env.ZHIPU_API_KEY || process.env.ZAI_API_KEY || process.env.Z_AI_API_KEY;
-  if (!key) {
+  const resolved = resolveZhipuApiKey();
+  if (!resolved) {
     throw new Error('ZHIPU_API_KEY or ZAI_API_KEY environment variable is not set');
   }
-  return key.trim();
+  return resolved.value;
 }
 
 function getBaseUrl() {
@@ -21,6 +33,14 @@ function getBaseUrl() {
 
 function getModel(model?: string) {
   return model || process.env.ZHIPU_MODEL || process.env.ZAI_MODEL || DEFAULT_MODEL;
+}
+
+export function getZhipuRuntimeConfig(model?: string) {
+  return {
+    baseUrl: getBaseUrl(),
+    model: getModel(model),
+    timeoutMs: REQUEST_TIMEOUT_MS,
+  };
 }
 
 interface ZhipuMessage {

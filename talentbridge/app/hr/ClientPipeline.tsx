@@ -6,6 +6,7 @@ import type { HrResponse, VerdictResult, DimensionScore, SentinelData } from '@/
 import type { Session } from '@/lib/db/schema';
 import { getCurrentTimestamp } from '@/lib/utils/runtime';
 import { normalizeSentinelData } from '@/lib/sentinel';
+import { getCsrfTokenFromCookie } from '@/lib/clientSecurity';
 
 const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
 const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: string; border: string }> = {
@@ -69,7 +70,7 @@ export default function ClientPipeline({
     if (!confirm(`Mark "${roleTitle}" as filled? All pending candidates will be automatically notified.`)) return;
     setFilling(jdId);
     try {
-      const res = await fetch(`/api/jd/${jdId}/fill-role`, { method: 'POST' });
+      const res = await fetch(`/api/jd/${jdId}/fill-role`, { method: 'POST', headers: { 'X-CSRF-Token': getCsrfTokenFromCookie() } });
       const data = await res.json();
       if (res.ok) {
         setFilledRoles(prev => new Set([...prev, jdId]));
@@ -88,7 +89,7 @@ export default function ClientPipeline({
     setSchedulingFor(candidateName);
     setScheduleLogs(['[Scheduling] Preparing the follow-up workflow...']);
     try {
-      const res = await fetch(`/api/hr/session/${sessionId}/schedule-preview`, { method: 'POST' });
+      const res = await fetch(`/api/hr/session/${sessionId}/schedule-preview`, { method: 'POST', headers: { 'X-CSRF-Token': getCsrfTokenFromCookie() } });
       const data = await res.json();
       if (!res.ok) {
         setScheduleLogs(prev => [...prev, `[System] ${data.error || 'Could not create schedule preview.'}`]);
@@ -128,7 +129,7 @@ export default function ClientPipeline({
     try {
       const res = await fetch(`/api/hr/session/${sessionId}/response`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfTokenFromCookie() },
         body: JSON.stringify({ response }),
       });
       const data = await res.json();
