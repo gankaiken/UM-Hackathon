@@ -753,7 +753,7 @@ HRDC spends RM 1.5 billion annually on upskilling but has no objective tool to m
 | Real-time streaming | SSE (Server-Sent Events) | More resilient than WebSocket on unstable connections |
 | AI Agents | GLM-4 via ZhipuAI API | Native BM/Manglish reasoning, JSON mode, 128k context |
 | Sentinel | Vanilla JS (browser native events) | No library needed, works on any device |
-| Database | Supabase (PostgreSQL) | Session persistence, Auth, Row-Level Security |
+| Database | SQLite | Session persistence, Auth, Row-Level Security |
 | Schema Validator | Python / Node.js function | Pure code, zero AI tokens |
 | Deployment | Vercel | Instant CI/CD from GitHub, global CDN |
 

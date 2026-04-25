@@ -1,0 +1,647 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TALENTBRIDGE AI — STRIPE-INSPIRED DESIGN SYSTEM
+   Premium light theme with multi-layer blue-tinted shadows
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  /* Primary brand */
+  --purple:        #533afd;
+  --purple-hover:  #4434d4;
+  --purple-deep:   #2e2b8c;
+  --purple-light:  #b9b9f9;
+  --purple-soft:   rgba(83,58,253,0.06);
+  --purple-glow:   rgba(83,58,253,0.15);
+
+  /* Text hierarchy */
+  --navy:          #061b31;   /* All headings */
+  --slate-dark:    #273951;   /* Labels, sub-headings */
+  --slate:         #64748d;   /* Body copy */
+  --border:        #e5edf5;   /* Default border */
+
+  /* Accent / semantic */
+  --ruby:          #ea2261;
+  --magenta:       #f96bee;
+  --green:         #15be53;
+  --green-text:    #108c3d;
+  --amber:         #f59e0b;
+  --red:           #ef4444;
+
+  /* Triage */
+  --triage-green-bg:   rgba(21,190,83,0.12);
+  --triage-green-text: #108c3d;
+  --triage-green-border: rgba(21,190,83,0.35);
+  --triage-amber-bg:   rgba(245,158,11,0.12);
+  --triage-amber-text: #92650a;
+  --triage-amber-border: rgba(245,158,11,0.35);
+  --triage-red-bg:     rgba(239,68,68,0.12);
+  --triage-red-text:   #b91c1c;
+  --triage-red-border: rgba(239,68,68,0.35);
+
+  /* Dark brand section */
+  --brand-dark:    #1c1e54;
+
+  /* Surfaces */
+  --white:         #ffffff;
+  --bg-page:       #f8fafc;
+  --bg-subtle:     #f1f5f9;
+
+  /* Shadow system — blue-tinted depth */
+  --shadow-sm:     rgba(50,50,93,0.08) 0px 4px 12px, rgba(0,0,0,0.05) 0px 2px 6px;
+  --shadow-md:     rgba(50,50,93,0.18) 0px 18px 36px -12px, rgba(0,0,0,0.08) 0px 8px 18px -8px;
+  --shadow-lg:     rgba(50,50,93,0.25) 0px 30px 45px -20px, rgba(0,0,0,0.10) 0px 18px 36px -18px;
+  --shadow-xl:     rgba(3,3,39,0.20) 0px 40px 60px -20px, rgba(0,0,0,0.12) 0px 20px 40px -20px;
+
+  /* Radius */
+  --radius-xs:     4px;
+  --radius-sm:     6px;
+  --radius-md:     8px;
+  --radius-lg:     12px;
+  --radius-xl:     16px;
+  --radius-pill:   9999px;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* ── Base Reset ────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01" 1;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--navy);
+  min-height: 100vh;
+}
+
+/* ── Typography Scale ──────────────────────────────────────────────────────── */
+.display-hero {
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 300;
+  line-height: 1.04;
+  letter-spacing: -1.2px;
+  color: var(--navy);
+  font-feature-settings: "ss01" 1;
+}
+
+.display-lg {
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 300;
+  line-height: 1.12;
+  letter-spacing: -0.8px;
+  color: var(--navy);
+}
+
+.heading-section {
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.4px;
+  color: var(--navy);
+}
+
+.heading-card {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.15px;
+  color: var(--navy);
+}
+
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--slate);
+}
+
+/* ── Global Nav ────────────────────────────────────────────────────────────── */
+.tb-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: rgba(50,50,93,0.08) 0px 1px 0px;
+}
+
+.tb-nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.tb-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  margin-right: 32px;
+  flex-shrink: 0;
+}
+
+.tb-logo-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--purple);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tb-logo-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: -0.3px;
+}
+
+.tb-logo-text span {
+  color: var(--purple);
+}
+
+.tb-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.tb-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--slate-dark);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tb-nav-link:hover {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
+.tb-nav-link.active {
+  background: var(--purple-soft);
+  color: var(--purple);
+  font-weight: 500;
+}
+
+.tb-nav-link svg {
+  opacity: 0.6;
+}
+
+.tb-nav-link:hover svg,
+.tb-nav-link.active svg {
+  opacity: 1;
+}
+
+.tb-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  background: var(--purple-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 15px;
+  background: transparent;
+  color: var(--purple);
+  border: 1px solid var(--purple-light);
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn-ghost:hover {
+  background: var(--purple-soft);
+}
+
+.btn-neutral {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 15px;
+  background: #fff;
+  color: var(--slate-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-neutral:hover {
+  border-color: #c8d5e5;
+  box-shadow: rgba(50,50,93,0.12) 0px 8px 20px -6px, rgba(0,0,0,0.08) 0px 4px 10px -4px;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 24px;
+}
+
+.card-sm {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: #d0dde8;
+}
+
+/* ── Triage Pills ──────────────────────────────────────────────────────────── */
+.triage-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.triage-GREEN {
+  background: var(--triage-green-bg);
+  color: var(--triage-green-text);
+  border: 1px solid var(--triage-green-border);
+}
+
+.triage-AMBER {
+  background: var(--triage-amber-bg);
+  color: var(--triage-amber-text);
+  border: 1px solid var(--triage-amber-border);
+}
+
+.triage-RED {
+  background: var(--triage-red-bg);
+  color: var(--triage-red-text);
+  border: 1px solid var(--triage-red-border);
+}
+
+/* ── Skill Tags ────────────────────────────────────────────────────────────── */
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 400;
+  background: #f1f5f9;
+  color: var(--slate-dark);
+  border: 1px solid var(--border);
+}
+
+.skill-tag-gap {
+  background: rgba(245,158,11,0.08);
+  color: #92650a;
+  border-color: rgba(245,158,11,0.25);
+}
+
+/* ── Score Bar ─────────────────────────────────────────────────────────────── */
+.score-bar-track {
+  background: #eef2f7;
+  border-radius: 3px;
+  height: 5px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.score-bar-green  { background: linear-gradient(90deg, #15be53, #22c55e); }
+.score-bar-amber  { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.score-bar-red    { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+/* ── KPI Cards ─────────────────────────────────────────────────────────────── */
+.kpi-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 24px;
+  transition: box-shadow 0.2s;
+}
+
+.kpi-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-value {
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: -1px;
+  color: var(--navy);
+  line-height: 1;
+  font-feature-settings: "tnum" 1;
+}
+
+.kpi-label {
+  font-size: 13px;
+  color: var(--slate);
+  margin-top: 4px;
+}
+
+.kpi-delta {
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kpi-delta-pos { color: var(--green-text); }
+.kpi-delta-neg { color: var(--red); }
+.kpi-delta-warn { color: var(--amber); }
+
+/* ── Authenticity Badge ────────────────────────────────────────────────────── */
+.auth-clean {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--green-text);
+  background: var(--triage-green-bg);
+  border: 1px solid var(--triage-green-border);
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+}
+
+.auth-flagged {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--triage-red-text);
+  background: var(--triage-red-bg);
+  border: 1px solid var(--triage-red-border);
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+}
+
+/* ── Page Container ────────────────────────────────────────────────────────── */
+.page-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.page-container-narrow {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+/* ── Section Labels ────────────────────────────────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+}
+
+/* ── Data Table ────────────────────────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--slate);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+}
+
+.data-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--slate-dark);
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr {
+  transition: background 0.1s;
+}
+
+.data-table tbody tr:hover {
+  background: #fafbfe;
+}
+
+/* ── Dark Brand Section ────────────────────────────────────────────────────── */
+.brand-dark-section {
+  background: var(--brand-dark);
+  color: #fff;
+  padding: 80px 24px;
+}
+
+/* ── Chat Bubbles (Candidate View) ─────────────────────────────────────────── */
+.bubble-candidate {
+  background: var(--purple);
+  color: #fff;
+  border-radius: 18px 18px 4px 18px;
+  padding: 12px 16px;
+  max-width: 72%;
+  font-size: 15px;
+  line-height: 1.55;
+  align-self: flex-end;
+  word-break: break-word;
+  box-shadow: rgba(83,58,253,0.25) 0px 4px 12px;
+}
+
+.bubble-ai {
+  background: var(--white);
+  border: 1px solid var(--border);
+  color: var(--navy);
+  border-radius: 18px 18px 18px 4px;
+  padding: 12px 16px;
+  max-width: 72%;
+  font-size: 15px;
+  line-height: 1.55;
+  align-self: flex-start;
+  word-break: break-word;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Typing Indicator ──────────────────────────────────────────────────────── */
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--purple-light);
+  border-radius: 50%;
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* ── Timeline Steps ────────────────────────────────────────────────────────── */
+.timeline-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 13px;
+}
+
+.timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.timeline-dot-done   { background: var(--green); }
+.timeline-dot-active { background: var(--purple); box-shadow: 0 0 0 3px var(--purple-glow); }
+.timeline-dot-pending { background: #d1d9e8; }
+
+/* ── Spinner ───────────────────────────────────────────────────────────────── */
+.spinner {
+  animation: spin 0.75s linear infinite;
+  border-radius: 50%;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Fade In ───────────────────────────────────────────────────────────────── */
+.fade-in {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Sentinel Badge ────────────────────────────────────────────────────────── */
+.sentinel-clean  { color: var(--green-text); }
+.sentinel-stage1 { color: var(--amber); }
+.sentinel-stage2 { color: var(--red); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #dde5f0; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #c8d5e5; }
+
+/* ── Reputation Ring ───────────────────────────────────────────────────────── */
+.rep-ring { transform: rotate(-90deg); }
+.rep-ring circle { transition: stroke-dashoffset 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ── Pulse animation ───────────────────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(83,58,253,0.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(83,58,253,0); }
+  100% { box-shadow: 0 0 0 0 rgba(83,58,253,0); }
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse-ring 2s infinite;
+}
+
+/* ── Responsive utility ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .tb-nav-links { display: none; }
+  .page-container { padding: 24px 16px; }
+  .display-hero { font-size: 32px; }
+}

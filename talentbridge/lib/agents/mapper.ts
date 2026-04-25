@@ -1,0 +1,44 @@
+// lib/agents/mapper.ts
+// Agent 1: The Mapper — extracts exactly 5 competency dimensions from a JD.
+// Routes to mock when no API key is set.
+
+import { zhipuJson } from '../zhipu';
+import { mockMapper } from './mock';
+import type { MapperResult } from '../types';
+
+const MAPPER_SYSTEM_PROMPT = `You are the Mapper agent for TalentBridge AI, a hiring intelligence system.
+
+Your role: Read a job description (JD) and extract exactly 5 core competency dimensions that can be tested through a text conversation about real past experience.
+
+Rules:
+- Extract EXACTLY 5 dimensions — not 4, not 6
+- Dimensions must be BEHAVIOURAL and testable through conversation (e.g. "problem-solving under pressure", NOT "has a degree")
+- Identify 2-3 probe targets — things the JD implies but doesn't state explicitly
+- If JD is under 50 words, set truncated_input: true and infer from Malaysian SME norms for that role type
+- Respond in English regardless of JD language
+- Output ONLY valid JSON matching the schema below
+
+Output schema:
+{
+  "role_title": "string",
+  "core_dimensions": ["dim1", "dim2", "dim3", "dim4", "dim5"],
+  "probe_targets": ["probe1", "probe2"],
+  "truncated_input": false
+}`;
+
+export async function runMapper(jdText: string): Promise<MapperResult> {
+  // Use mock if no API key
+  if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
+    console.log('[Mapper] Using mock (no API key)');
+    return mockMapper(jdText);
+  }
+
+  return await zhipuJson<MapperResult>({
+    messages: [
+      { role: 'system', content: MAPPER_SYSTEM_PROMPT },
+      { role: 'user', content: `Here is the job description:\n\n${jdText}` },
+    ],
+    temperature: 0.3,
+    max_tokens: 1024,
+  });
+}
