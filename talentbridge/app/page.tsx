@@ -5,6 +5,8 @@
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import ParticleBackground from '@/components/ParticleBackground';
+import ParticleShapeWrapper from '@/components/ParticleShapeWrapper';
+
 
 const STATS = [
   { value: '200K+', label: 'Malaysian grads ghosted yearly' },
@@ -814,7 +816,56 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA FINAL ─────────────────────────────────────────────────── */}
+      {/* ── DEVELOPER MODULE (Stardust + Shape) ────────────────────────── */}
+      <section 
+        style={{ 
+          padding: '120px 40px', 
+          background: '#05070A', 
+          position: 'relative', 
+          overflow: 'hidden' 
+        }}
+      >
+        {/* Secondary stardust background for this section */}
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.6 }}>
+          <ParticleBackground mode="random" dark={true} />
+        </div>
+
+        <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <ParticleShapeWrapper shape="braces">
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <div className="label" style={{ color: '#8B5CF6', marginBottom: 20 }}>For Developers</div>
+              <h2 className="heading-2" style={{ color: '#F9FAFB', marginBottom: 24, fontSize: 'clamp(32px, 4vw, 48px)' }}>
+                Integrate TalentBridge into your existing stack
+              </h2>
+              <p className="body-large" style={{ maxWidth: 640, margin: '0 auto 48px', color: '#94A3B8' }}>
+                Build custom recruitment workflows with our robust API. 
+                Trigger sessions from your ATS, listen to verdict webhooks, 
+                and automate the hiring pipeline with 99.9% reliability.
+              </p>
+              
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+                <code style={{ 
+                  background: '#1A1D23', 
+                  color: '#A5B4FC', 
+                  padding: '12px 20px', 
+                  borderRadius: 12, 
+                  fontSize: 14,
+                  fontFamily: 'var(--font-mono)',
+                  border: '1px solid #2D3139'
+                }}>
+                  npm install @talentbridge/sdk
+                </code>
+                <button className="btn-secondary" style={{ height: 46 }}>
+                  View API Docs
+                </button>
+              </div>
+            </div>
+          </ParticleShapeWrapper>
+        </div>
+      </section>
+
+      {/* ── FINAL CTA ────────────────────────────────────────────────── */}
+
       <section
         style={{
           padding: '120px 40px',
