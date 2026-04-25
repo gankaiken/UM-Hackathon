@@ -83,6 +83,13 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create session');
+      // Save to My Applications list in browser storage
+      try {
+        const prev = JSON.parse(localStorage.getItem('tb_my_applications') || '[]');
+        prev.unshift({ sessionId: data.sessionId, role: roleTitle, company: employer, appliedAt: Date.now() });
+        localStorage.setItem('tb_my_applications', JSON.stringify(prev.slice(0, 20)));
+        localStorage.removeItem('apply_form_draft');
+      } catch { /* localStorage unavailable */ }
       router.push(`/interview/${data.sessionId}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');

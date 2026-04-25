@@ -26,20 +26,23 @@ export async function POST(req: NextRequest) {
 
     const turnNumber = session.turnCount + 1;
     const now = Date.now();
+    const isStartTrigger = message === '__INTERVIEW_START__';
     const mergedSentinelData = mergeSentinelData(
       session.sentinelData ? JSON.parse(session.sentinelData) : {},
       sentinelData || {}
     );
 
-    // 1. Save candidate message
-    await db.insert(transcripts).values({
-      sessionId,
-      turnNumber,
-      role: 'candidate',
-      content: message,
-      sentinelSnapshot: JSON.stringify(mergedSentinelData),
-      createdAt: now,
-    });
+    // 1. Save candidate message (skip internal start trigger — never shown to user)
+    if (!isStartTrigger) {
+      await db.insert(transcripts).values({
+        sessionId,
+        turnNumber,
+        role: 'candidate',
+        content: message,
+        sentinelSnapshot: JSON.stringify(mergedSentinelData),
+        createdAt: now,
+      });
+    }
 
     // 2. Fetch history
     const dbTranscripts = await db
