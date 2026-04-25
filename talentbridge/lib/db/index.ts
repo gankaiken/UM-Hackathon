@@ -81,9 +81,15 @@ function initSchema(sqlite: Database.Database) {
       dispute_requested_at INTEGER,
       dispute_reason TEXT,
       dispute_status TEXT,
+      dispute_resolved_at INTEGER,
+      dispute_resolution TEXT,
+      dispute_resolution_notes TEXT,
       moderation_status TEXT,
       moderation_errors TEXT,
-      moderation_escalated_at INTEGER
+      moderation_escalated_at INTEGER,
+      session_lifecycle_status TEXT,
+      session_expired_at INTEGER,
+      partial_profile_created_at INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS transcripts (
@@ -122,11 +128,17 @@ function initSchema(sqlite: Database.Database) {
     { name: 'interview_meeting_link', definition: "TEXT DEFAULT ''" },
     { name: 'interview_schedule_note', definition: "TEXT DEFAULT ''" },
     { name: 'dispute_requested_at', definition: 'INTEGER' },
-    { name: 'dispute_reason', definition: "TEXT DEFAULT ''" },
-    { name: 'dispute_status', definition: "TEXT DEFAULT ''" },
-    { name: 'moderation_status', definition: "TEXT DEFAULT ''" },
-    { name: 'moderation_errors', definition: "TEXT DEFAULT ''" },
+    { name: 'dispute_reason', definition: "TEXT" },
+    { name: 'dispute_status', definition: "TEXT" },
+    { name: 'dispute_resolved_at', definition: 'INTEGER' },
+    { name: 'dispute_resolution', definition: 'TEXT' },
+    { name: 'dispute_resolution_notes', definition: 'TEXT' },
+    { name: 'moderation_status', definition: "TEXT" },
+    { name: 'moderation_errors', definition: "TEXT" },
     { name: 'moderation_escalated_at', definition: 'INTEGER' },
+    { name: 'session_lifecycle_status', definition: 'TEXT' },
+    { name: 'session_expired_at', definition: 'INTEGER' },
+    { name: 'partial_profile_created_at', definition: 'INTEGER' },
   ]);
 }
 
