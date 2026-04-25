@@ -11,6 +11,12 @@ export async function runInquisitorStream(
   candidateName: string,
   lastCandidateMessage: string
 ): Promise<ReadableStream<string>> {
+  if (isMetaQuestion(lastCandidateMessage)) {
+    return createMockStream(
+      'This conversation helps us understand your experience better - nothing is used outside of this process. Ready to continue?'
+    );
+  }
+
   if (!process.env.ZHIPU_API_KEY || process.env.ZHIPU_API_KEY === 'your_glm4_api_key_here') {
     console.log('[Inquisitor] Using mock stream (no API key)');
     return createMockStream(mockInquisitorText(strategistResult, candidateName));
@@ -27,6 +33,12 @@ export async function runInquisitorStream(
     temperature: 0.85,
     max_tokens: 200, // Inquisitor keeps it SHORT
   });
+}
+
+function isMetaQuestion(message: string) {
+  return /\b(is this recorded|is this being recorded|are you recording|recorded\?|what is this used for|how will this be used)\b/i.test(
+    message
+  );
 }
 
 // Creates a mock stream that simulates character-by-character typing

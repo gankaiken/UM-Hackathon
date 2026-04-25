@@ -1,21 +1,58 @@
 'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
+import type { HrResponse, VerdictResult, DimensionScore, SentinelData } from '@/lib/types';
+import type { Session } from '@/lib/db/schema';
+import { getCurrentTimestamp } from '@/lib/utils/runtime';
 
 const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
+const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: string; border: string }> = {
+  offer: { label: 'Proceed', color: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.22)' },
+  hold: { label: 'Hold', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.22)' },
+  reject: { label: 'Pass', color: '#EF4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.22)' },
+};
 
-export default function ClientPipeline({ completed }: { completed: any[] }) {
+interface CompletedSessionItem {
+  session: Session;
+  roleTitle: string | null;
+  company: string | null;
+}
+
+interface ResponseOverride {
+  hrResponse: HrResponse;
+  hrRespondedAt: number;
+}
+
+interface ScheduleOverride {
+  interviewScheduledAt: number;
+  interviewMeetingLink: string;
+  interviewScheduleNote: string;
+}
+
+function getAverageVerdictScore(verdict: VerdictResult): number {
+  const scores = Object.values(verdict.dimension_scores || {});
+  return verdict.overall_score ?? Math.round(
+    scores.reduce<number>((sum, dimension) => sum + (typeof dimension === 'number' ? dimension : (dimension as DimensionScore).score), 0) /
+    Math.max(1, scores.length)
+  );
+}
+
+export default function ClientPipeline({ completed }: { completed: CompletedSessionItem[] }) {
   const [filter, setFilter] = useState('All');
   const [filledRoles, setFilledRoles] = useState<Set<string>>(new Set());
   const [filling, setFilling] = useState<string | null>(null);
   const [schedulingFor, setSchedulingFor] = useState<string | null>(null);
   const [scheduleLogs, setScheduleLogs] = useState<string[]>([]);
+  const [responseOverrides, setResponseOverrides] = useState<Record<string, ResponseOverride>>({});
+  const [scheduleOverrides, setScheduleOverrides] = useState<Record<string, ScheduleOverride>>({});
+  const [respondingSession, setRespondingSession] = useState<string | null>(null);
+  const now = getCurrentTimestamp();
 
-  // Detect candidates that have been waiting > 48 hours without HR response
   const ghostingCandidates = completed.filter(item => {
     if (!item.session?.completedAt) return false;
-    const elapsed = Date.now() - item.session.completedAt;
-    const responded = item.session?.hrRespondedAt;
+    const elapsed = now - item.session.completedAt;
+    const responded = responseOverrides[item.session.id]?.hrRespondedAt ?? item.session?.hrRespondedAt;
     return elapsed > FORTY_EIGHT_HOURS && !responded;
   });
 
@@ -38,67 +75,122 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
     }
   };
 
-  const handleAutoSchedule = async (candidateName: string) => {
+  const handleAutoSchedule = async (sessionId: string, candidateName: string) => {
     setSchedulingFor(candidateName);
-    setScheduleLogs(['[Integration Agent] Initializing workflow...']);
-    
-    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-    
-    await delay(800);
-    setScheduleLogs(prev => [...prev, '[Gmail API] Drafting personalized interview invitation...']);
-    await delay(1200);
-    setScheduleLogs(prev => [...prev, '[Gmail API] Email sent. Awaiting candidate timeslot selection.']);
-    await delay(1500);
-    setScheduleLogs(prev => [...prev, '[Parser] Candidate reply received: "Tomorrow at 10 AM works for me."']);
-    await delay(800);
-    setScheduleLogs(prev => [...prev, '[Zoom API] Generating unique meeting room...']);
-    await delay(1000);
-    setScheduleLogs(prev => [...prev, '[Zoom API] Success: https://zoom.us/j/987654321']);
-    await delay(600);
-    setScheduleLogs(prev => [...prev, '[Calendar API] Creating event & injecting Zoom link...']);
-    await delay(1200);
-    setScheduleLogs(prev => [...prev, '[Calendar API] Event synced. Both parties invited.']);
-    await delay(800);
-    setScheduleLogs(prev => [...prev, '[System] Dashboard state updated to: Scheduled. Workflow complete.']);
-    
-    await delay(3000);
-    setSchedulingFor(null);
-    setScheduleLogs([]);
+    setScheduleLogs(['[Demo Scheduling] Preparing a sample follow-up workflow...']);
+    try {
+      const res = await fetch(`/api/hr/session/${sessionId}/schedule-preview`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setScheduleLogs(prev => [...prev, `[System] ${data.error || 'Could not create schedule preview.'}`]);
+        return;
+      }
+
+      setScheduleOverrides(prev => ({
+        ...prev,
+        [sessionId]: {
+          interviewScheduledAt: data.interviewScheduledAt,
+          interviewMeetingLink: data.interviewMeetingLink,
+          interviewScheduleNote: data.interviewScheduleNote,
+        },
+      }));
+
+      setScheduleLogs(prev => [
+        ...prev,
+        '[Demo Scheduling] Drafting a sample interview invitation...',
+        '[Demo Scheduling] Preparing candidate-facing schedule details...',
+        `[Demo Scheduling] Preview slot reserved: ${new Date(data.interviewScheduledAt).toLocaleString('en-MY')}`,
+        `[Demo Scheduling] Preview meeting link ready: ${data.interviewMeetingLink}`,
+        '[System] Demo workflow finished. No live external services were called.',
+      ]);
+    } catch {
+      setScheduleLogs(prev => [...prev, '[System] Network error while creating the scheduling preview.']);
+    } finally {
+      setTimeout(() => {
+        setSchedulingFor(null);
+        setScheduleLogs([]);
+      }, 3000);
+    }
   };
 
-  // Parse verdicts to allow filtering
-  const parsedCompleted = completed.map((item) => {
-    let verdict: any = null;
+  const handleHrResponse = async (sessionId: string, response: HrResponse) => {
+    setRespondingSession(`${sessionId}:${response}`);
+    try {
+      const res = await fetch(`/api/hr/session/${sessionId}/response`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Could not save HR response');
+        return;
+      }
+
+      setResponseOverrides(prev => ({
+        ...prev,
+        [sessionId]: {
+          hrResponse: data.hrResponse,
+          hrRespondedAt: data.hrRespondedAt,
+        },
+      }));
+    } catch {
+      alert('Network error. Please try again.');
+    } finally {
+      setRespondingSession(null);
+    }
+  };
+
+  const parsedCompleted = completed.map(item => {
+    let verdict: VerdictResult | null = null;
     let avgScore = 0;
     let isFlagged = false;
     let triage = 'RED';
-    const elapsed = item.session?.completedAt ? Date.now() - item.session.completedAt : 0;
-    const isOverdue = elapsed > FORTY_EIGHT_HOURS && !item.session?.hrRespondedAt;
+
+    const override = responseOverrides[item.session.id];
+    const scheduleOverride = scheduleOverrides[item.session.id];
+    const hrRespondedAt = override?.hrRespondedAt ?? item.session?.hrRespondedAt;
+    const hrResponse = override?.hrResponse ?? item.session?.hrResponse;
+    const interviewScheduledAt = scheduleOverride?.interviewScheduledAt ?? item.session?.interviewScheduledAt;
+    const interviewMeetingLink = scheduleOverride?.interviewMeetingLink ?? item.session?.interviewMeetingLink;
+    const interviewScheduleNote = scheduleOverride?.interviewScheduleNote ?? item.session?.interviewScheduleNote;
+    const elapsed = item.session?.completedAt ? now - item.session.completedAt : 0;
+    const isOverdue = elapsed > FORTY_EIGHT_HOURS && !hrRespondedAt;
 
     try {
       if (item.session?.verdict) {
-        verdict = JSON.parse(item.session.verdict);
-        const scores = Object.values(verdict.dimension_scores || {});
-        avgScore = verdict.overall_score ?? Math.round(
-          scores.reduce<number>((s, d: any) => s + (typeof d === 'number' ? d : d.score), 0) /
-          Math.max(1, scores.length)
-        );
-        triage = (verdict.triage_result || verdict.triage || 'RED').toUpperCase();
+        verdict = JSON.parse(item.session.verdict) as VerdictResult;
+        avgScore = getAverageVerdictScore(verdict);
+        triage = (verdict.triage_result || 'RED').toUpperCase();
       }
       if (item.session?.sentinelData) {
-        const sentinel = JSON.parse(item.session.sentinelData);
-        isFlagged = (sentinel.focus_loss_events > 3 && sentinel.paste_events > 1) || sentinel.ai_paste_detected;
+        const sentinel = JSON.parse(item.session.sentinelData) as SentinelData;
+        isFlagged = (sentinel.focus_loss_events > 3 && sentinel.paste_events > 1) || Boolean(sentinel.ai_paste_detected);
       }
-    } catch { }
+    } catch {
+      // Keep the row visible even if a malformed seed payload slips through.
+    }
 
-    return { ...item, verdict, avgScore, isFlagged, triage, isOverdue };
+    return {
+      ...item,
+      verdict,
+      avgScore,
+      isFlagged,
+      triage,
+      isOverdue,
+      hrRespondedAt,
+      hrResponse,
+      interviewScheduledAt,
+      interviewMeetingLink,
+      interviewScheduleNote,
+    };
   }).filter(item => item.verdict !== null);
 
   const filteredData = parsedCompleted.filter(item => filter === 'All' || item.triage.toUpperCase() === filter.toUpperCase());
 
   return (
     <>
-      {/* ── 48-HOUR GHOSTING ALERT BANNER ───────────────────────────── */}
       {ghostingCandidates.length > 0 && (
         <div style={{
           background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.25)',
@@ -116,7 +208,7 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
               {ghostingCandidates.length} candidate{ghostingCandidates.length > 1 ? 's' : ''} awaiting response for over 48 hours
             </div>
             <div style={{ fontSize: 13, color: '#94A3B8', fontFamily: 'var(--font-body)' }}>
-              Delayed responses will penalise your <strong style={{ color: '#F9FAFB' }}>HR Reputation Score</strong>. Please act now.
+              Delayed responses are tracked in the dashboard&apos;s response score. Please act now.
             </div>
           </div>
           <Link href="/verdicts" style={{
@@ -130,10 +222,7 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
         </div>
       )}
 
-      {/* ── REPUTATION + PENDING ────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
-
-        {/* System health */}
         <div style={{
           background: '#141820', border: '1.5px solid #1E2433',
           borderRadius: 24, padding: '28px',
@@ -148,10 +237,15 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <svg width="100" height="100" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="50" cy="50" r="38" fill="none" stroke="#1E2433" strokeWidth="8"/>
-                <circle cx="50" cy="50" r="38" fill="none"
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#1E2433" strokeWidth="8" />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="38"
+                  fill="none"
                   stroke="#10B981"
-                  strokeWidth="8" strokeLinecap="round"
+                  strokeWidth="8"
+                  strokeLinecap="round"
                   strokeDasharray={2 * Math.PI * 38}
                   strokeDashoffset={(2 * Math.PI * 38) * (1 - 0.98)}
                   style={{ transition: 'stroke-dashoffset 1.2s ease-in-out' }}
@@ -182,7 +276,7 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                 background: '#1E2433', borderRadius: 6, height: 6, overflow: 'hidden', marginBottom: 16,
               }}>
                 <div style={{
-                  width: `98%`, height: '100%',
+                  width: '98%', height: '100%',
                   background: 'linear-gradient(90deg, #059669, #10B981)', borderRadius: 6,
                 }} />
               </div>
@@ -193,13 +287,12 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                 fontSize: 13, color: '#34D399', lineHeight: 1.5,
                 fontFamily: 'var(--font-body)',
               }}>
-                The 7-agent pipeline is firing globally across all active roles with no latency anomalies.
+                Current demo sessions are flowing through the interview pipeline with persisted state and verdict output.
               </div>
             </div>
           </div>
         </div>
 
-        {/* Pending overrides */}
         <div style={{
           background: '#141820', border: '1.5px solid #1E2433',
           borderRadius: 24, padding: '28px',
@@ -212,72 +305,75 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
             Pending Action Required
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[
-              {
-                name: 'Aisyah Binti Razali', triage: 'AMBER',
-                flag: 'Language Style Mismatch', id: 'seed-session-aisyah',
-                color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)',
-              },
-              {
-                name: 'Julian Doe', triage: 'RED',
-                flag: 'Sentinel Focus Trace Failed', id: 'seed-session-siti',
-                color: '#EF4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)',
-              },
-            ].map(p => (
-              <div
-                key={p.id}
-                style={{
-                  background: p.bg, border: `1.5px solid ${p.border}`,
-                  borderRadius: 14, padding: '14px 18px',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div>
-                  <div style={{
-                    fontSize: 14, fontWeight: 600, color: '#F9FAFB',
-                    marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8,
-                    fontFamily: 'var(--font-body)',
-                  }}>
-                    {p.name}
-                    <span style={{
-                      padding: '2px 7px', borderRadius: 4, fontSize: 10,
-                      fontWeight: 700, fontFamily: 'var(--font-mono)',
-                      letterSpacing: '0.5px', textTransform: 'uppercase',
-                      background: p.color + '25', color: p.color,
-                    }}>
-                      {p.triage}
-                    </span>
+            {parsedCompleted
+              .filter(item => item.verdict?.human_review_required && !item.hrResponse)
+              .slice(0, 2)
+              .map(item => {
+                if (!item.verdict) return null;
+                const flagColor = item.triage === 'RED' ? '#EF4444' : '#F59E0B';
+                return (
+                  <div
+                    key={item.session.id}
+                    style={{
+                      background: flagColor === '#EF4444' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+                      border: `1.5px solid ${flagColor}33`,
+                      borderRadius: 14, padding: '14px 18px',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{
+                        fontSize: 14, fontWeight: 600, color: '#F9FAFB',
+                        marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8,
+                        fontFamily: 'var(--font-body)',
+                      }}>
+                        {item.session.candidateName}
+                        <span style={{
+                          padding: '2px 7px', borderRadius: 4, fontSize: 10,
+                          fontWeight: 700, fontFamily: 'var(--font-mono)',
+                          letterSpacing: '0.5px', textTransform: 'uppercase',
+                          background: `${flagColor}25`, color: flagColor,
+                        }}>
+                          {item.triage}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#94A3B8', fontFamily: 'var(--font-body)' }}>
+                        ⚠ Review required before employer action.
+                      </div>
+                    </div>
+                    <Link
+                      href={`/hr/verdict/${item.session.id}`}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        fontSize: 12, fontWeight: 600, color: flagColor,
+                        background: `${flagColor}15`, border: `1px solid ${flagColor}40`,
+                        padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+                        whiteSpace: 'nowrap', fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      Review
+                    </Link>
                   </div>
-                  <div style={{ fontSize: 12, color: '#94A3B8', fontFamily: 'var(--font-body)' }}>
-                    ⚠ {p.flag}
-                  </div>
-                </div>
-                <button
-                  onClick={() => alert(`Redirecting to advanced manual review for ${p.name}...`)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    fontSize: 12, fontWeight: 600, color: p.color,
-                    background: p.color + '15', border: `1px solid ${p.color}40`,
-                    padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
-                    transition: 'all 0.15s ease', whiteSpace: 'nowrap', cursor: 'pointer',
-                    fontFamily: 'var(--font-body)',
-                  }}
-                >
-                  Respond
-                </button>
+                );
+              })}
+            {parsedCompleted.filter(item => item.verdict?.human_review_required && !item.hrResponse).length === 0 && (
+              <div style={{
+                background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)',
+                borderRadius: 14, padding: '16px 18px', color: '#34D399',
+                fontSize: 13, fontFamily: 'var(--font-body)',
+              }}>
+                No unresolved human-review items are waiting right now.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── PIPELINE TABLE ──────────────────────────────────────────── */}
       <div style={{
         background: '#141820', border: '1.5px solid #1E2433',
         borderRadius: 24, overflow: 'hidden',
       }}>
-        {/* Table header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '24px 28px', borderBottom: '1px solid #1E2433',
@@ -291,29 +387,32 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
               All Candidates — Pipeline View
             </h2>
             <div style={{ fontSize: 13, color: '#475569', fontFamily: 'var(--font-body)' }}>
-              {parsedCompleted.length} total candidates routed through 7-agent pipeline
+              {parsedCompleted.length} total candidates routed through the current interview pipeline
             </div>
           </div>
 
-          {/* Filter tabs */}
           <div style={{
             display: 'flex', gap: 4,
             background: '#0F1117', padding: '4px', borderRadius: 10,
           }}>
-            {['All', 'GREEN', 'AMBER', 'RED'].map((f) => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: '6px 14px', borderRadius: 7, fontSize: 12, border: 'none',
-                fontWeight: filter === f ? 700 : 500, cursor: 'pointer',
-                background: filter === f ? '#1E2433' : 'transparent',
-                color: filter === f ? '#F9FAFB'
-                  : f === 'GREEN' ? '#10B981'
-                  : f === 'AMBER' ? '#F59E0B'
-                  : f === 'RED'   ? '#EF4444'
-                  : '#64748B',
-                transition: 'all 0.15s ease',
-                fontFamily: 'var(--font-body)',
-              }}>
-                {f}
+            {['All', 'GREEN', 'AMBER', 'RED'].map(value => (
+              <button
+                key={value}
+                onClick={() => setFilter(value)}
+                style={{
+                  padding: '6px 14px', borderRadius: 7, fontSize: 12, border: 'none',
+                  fontWeight: filter === value ? 700 : 500, cursor: 'pointer',
+                  background: filter === value ? '#1E2433' : 'transparent',
+                  color: filter === value ? '#F9FAFB'
+                    : value === 'GREEN' ? '#10B981'
+                    : value === 'AMBER' ? '#F59E0B'
+                    : value === 'RED' ? '#EF4444'
+                    : '#64748B',
+                  transition: 'all 0.15s ease',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                {value}
               </button>
             ))}
           </div>
@@ -322,38 +421,38 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr>
-              {['Candidate', 'Role', 'Triage', 'Dimension Score', 'Status', 'Action'].map(h => (
-                <th key={h} style={{
-                  fontSize: 11, fontWeight: 600, letterSpacing: '0.5px',
-                  textTransform: 'uppercase', color: '#475569',
-                  padding: '14px 20px',
-                  borderBottom: '1px solid #1E2433',
-                  fontFamily: 'var(--font-body)',
-                }}>
-                  {h}
+              {['Candidate', 'Role', 'Triage', 'Dimension Score', 'Status', 'Action'].map(header => (
+                <th
+                  key={header}
+                  style={{
+                    fontSize: 11, fontWeight: 600, letterSpacing: '0.5px',
+                    textTransform: 'uppercase', color: '#475569',
+                    padding: '14px 20px',
+                    borderBottom: '1px solid #1E2433',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  {header}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {filteredData.map(({ session, roleTitle, verdict, avgScore, isFlagged, triage, isOverdue }) => {
-              const triageMeta = {
-                GREEN: { color: '#10B981', bg: 'rgba(16,185,129,0.12)', text: '#F9FAFB' },
-                AMBER: { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', text: '#F9FAFB' },
-                RED:   { color: '#EF4444', bg: 'rgba(239,68,68,0.12)',  text: '#F9FAFB' },
-              }[triage as 'GREEN' | 'AMBER' | 'RED'] ?? { color: '#64748B', bg: 'rgba(100,116,139,0.12)', text: '#F9FAFB' };
+            {filteredData.map(({ session, roleTitle, verdict, avgScore, isFlagged, triage, isOverdue, hrResponse, hrRespondedAt, interviewScheduledAt, interviewMeetingLink }) => {
+              if (!verdict) return null;
 
-              const initials = session.candidateName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-              const barColorClass = avgScore >= 75 ? '#10B981' : avgScore >= 50 ? '#F59E0B' : '#EF4444';
+              const triageMeta = {
+                GREEN: { color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
+                AMBER: { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
+                RED: { color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
+              }[triage as 'GREEN' | 'AMBER' | 'RED'] ?? { color: '#64748B', bg: 'rgba(100,116,139,0.12)' };
+
+              const responseMeta = hrResponse ? RESPONSE_META[hrResponse as HrResponse] : null;
+              const initials = session.candidateName.split(' ').map((word: string) => word[0]).join('').slice(0, 2).toUpperCase();
+              const barColor = avgScore >= 75 ? '#10B981' : avgScore >= 50 ? '#F59E0B' : '#EF4444';
 
               return (
-                <tr
-                  key={session.id}
-                  className="hr-table-row"
-                  style={{
-                    borderBottom: '1px solid #1E2433',
-                  }}
-                >
+                <tr key={session.id} className="hr-table-row" style={{ borderBottom: '1px solid #1E2433' }}>
                   <td style={{ padding: '18px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{
@@ -361,8 +460,8 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                         background: 'linear-gradient(135deg, #1E2D60, #1E3A5F)',
                         border: '1px solid #2D3748',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 13, fontWeight: 700, color: '#93C5FD', flexShrink: 0,
-                        fontFamily: 'var(--font-display)',
+                        fontSize: 13, fontWeight: 700, color: '#93C5FD',
+                        flexShrink: 0, fontFamily: 'var(--font-display)',
                       }}>
                         {initials}
                       </div>
@@ -401,7 +500,7 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                       }}>
                         <div style={{
                           width: `${avgScore}%`, height: '100%',
-                          background: barColorClass, borderRadius: 3,
+                          background: barColor, borderRadius: 3,
                         }} />
                       </div>
                       <span style={{
@@ -413,19 +512,53 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                     </div>
                   </td>
                   <td style={{ padding: '18px 20px' }}>
-                    <span style={{
-                      fontSize: 12, fontWeight: 600,
-                      color: verdict.human_review_required ? '#F59E0B' : '#10B981',
-                      fontFamily: 'var(--font-body)',
-                    }}>
-                      {verdict.human_review_required ? '⚠ Review Required' : '✓ Cleared'}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{
+                        fontSize: 12, fontWeight: 600,
+                        color: verdict.human_review_required ? '#F59E0B' : '#10B981',
+                        fontFamily: 'var(--font-body)',
+                      }}>
+                        {verdict.human_review_required ? '⚠ Review Required' : '✓ Cleared'}
+                      </span>
+                      {responseMeta ? (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', width: 'fit-content',
+                          padding: '4px 8px', borderRadius: 6,
+                          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                          fontFamily: 'var(--font-mono)', letterSpacing: '0.4px',
+                          color: responseMeta.color, background: responseMeta.bg,
+                          border: `1px solid ${responseMeta.border}`,
+                        }}>
+                          {responseMeta.label}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: '#64748B', fontFamily: 'var(--font-body)' }}>
+                          Awaiting HR action
+                        </span>
+                      )}
+                      {interviewScheduledAt ? (
+                        <span style={{ fontSize: 10, color: '#34D399', fontFamily: 'var(--font-body)' }}>
+                          Interview scheduled preview ready
+                        </span>
+                      ) : null}
+                      {session.disputeRequestedAt ? (
+                        <span style={{ fontSize: 10, color: '#F59E0B', fontFamily: 'var(--font-body)' }}>
+                          Candidate dispute pending review
+                        </span>
+                      ) : null}
+                      {hrRespondedAt ? (
+                        <span style={{ fontSize: 10, color: '#64748B', fontFamily: 'var(--font-body)' }}>
+                          {new Date(hrRespondedAt).toLocaleString('en-MY')}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td style={{ padding: '18px 20px' }}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                       {(triage === 'GREEN' || triage === 'AMBER') && (
                         <button
-                          onClick={() => handleAutoSchedule(session.candidateName)}
+                          onClick={() => handleAutoSchedule(session.id, session.candidateName)}
+                          disabled={hrResponse !== 'offer'}
                           style={{
                             background: 'linear-gradient(135deg, #10B981, #059669)',
                             color: '#FFFFFF',
@@ -440,12 +573,35 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                             gap: 6,
                             fontFamily: 'var(--font-mono)',
                             whiteSpace: 'nowrap',
-                            boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                            boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
+                            opacity: hrResponse === 'offer' ? 1 : 0.45,
                           }}
                         >
-                          <span>⚡</span> Agent Schedule
+                          <span>⚡</span> Demo Schedule
                         </button>
                       )}
+                      {(['offer', 'hold', 'reject'] as HrResponse[]).map(response => {
+                        const meta = RESPONSE_META[response];
+                        const isActive = hrResponse === response;
+                        const isLoading = respondingSession === `${session.id}:${response}`;
+                        return (
+                          <button
+                            key={response}
+                            onClick={() => handleHrResponse(session.id, response)}
+                            disabled={isLoading}
+                            style={{
+                              fontSize: 11, fontWeight: 700, cursor: isLoading ? 'wait' : 'pointer',
+                              color: isActive ? '#F9FAFB' : meta.color,
+                              background: isActive ? meta.color : meta.bg,
+                              border: `1px solid ${meta.border}`, borderRadius: 8,
+                              padding: '6px 10px', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap',
+                              opacity: isLoading ? 0.7 : 1,
+                            }}
+                          >
+                            {isLoading ? 'Saving...' : meta.label}
+                          </button>
+                        );
+                      })}
                       <Link
                         href={`/hr/verdict/${session.id}`}
                         style={{
@@ -455,14 +611,31 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                           background: 'rgba(37,99,235,0.1)',
                           border: '1px solid rgba(37,99,235,0.2)',
                           padding: '6px 14px', borderRadius: 8,
-                          textDecoration: 'none', transition: 'all 0.15s ease',
-                          fontFamily: 'var(--font-body)',
-                          whiteSpace: 'nowrap',
+                          textDecoration: 'none',
+                          fontFamily: 'var(--font-body)', whiteSpace: 'nowrap',
                         }}
                       >
                         View
                       </Link>
-                      {/* Overdue response indicator */}
+                      {interviewMeetingLink ? (
+                        <a
+                          href={interviewMeetingLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            fontSize: 11, fontWeight: 700,
+                            color: '#34D399',
+                            background: 'rgba(16,185,129,0.08)',
+                            border: '1px solid rgba(16,185,129,0.2)',
+                            padding: '6px 10px', borderRadius: 8,
+                            textDecoration: 'none',
+                            fontFamily: 'var(--font-body)', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Preview Link
+                        </a>
+                      ) : null}
                       {isOverdue && (
                         <span style={{
                           fontSize: 10, fontWeight: 700, color: '#FCA5A5',
@@ -473,7 +646,6 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
                           48hr OVERDUE
                         </span>
                       )}
-                      {/* Mark role as filled */}
                       {!filledRoles.has(session.jdId) && triage === 'GREEN' && (
                         <button
                           onClick={() => handleFillRole(session.jdId, roleTitle ?? 'this role')}
@@ -504,34 +676,37 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
             padding: '80px 24px', textAlign: 'center',
             borderTop: '1px solid #1E2433',
           }}>
-            <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.5 }}>🗄️</div>
+            <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.5 }}>🗂️</div>
             <div style={{ fontSize: 15, color: '#475569', fontFamily: 'var(--font-body)' }}>
-              No automated workflows matched this filter.{' '}
-              <button onClick={() => setFilter('All')} style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', fontWeight: 600 }}>
+              No candidate rows matched this filter.{' '}
+              <button
+                onClick={() => setFilter('All')}
+                style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', fontWeight: 600 }}
+              >
                 Clear Filters →
               </button>
             </div>
           </div>
         )}
       </div>
-      {/* ── AGENT SCHEDULING TERMINAL MODAL ───────────────────────── */}
+
       {schedulingFor && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
         }}>
           <div style={{
             width: 600, background: '#0A0C12', border: '1px solid #1E2433', borderRadius: 16,
-            overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.5)'
+            overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
           }}>
             <div style={{
               background: '#141820', padding: '16px 24px', borderBottom: '1px solid #1E2433',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 10px #10B981' }} />
                 <span style={{ color: '#F9FAFB', fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: 14 }}>
-                  Integration Agent (Agent 8)
+                  Scheduling Demo (Agent 8 Preview)
                 </span>
               </div>
               <div style={{ fontSize: 12, color: '#64748B', fontFamily: 'var(--font-mono)' }}>
@@ -539,25 +714,29 @@ export default function ClientPipeline({ completed }: { completed: any[] }) {
               </div>
             </div>
             <div style={{ padding: '24px', fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.8, minHeight: 300 }}>
-              {scheduleLogs.map((log, i) => (
-                <div key={i} style={{ 
-                  color: log.includes('Success') || log.includes('complete') ? '#10B981' : 
-                         log.includes('Parser') ? '#F59E0B' : '#60A5FA',
-                  opacity: i === scheduleLogs.length - 1 ? 1 : 0.7,
-                  marginBottom: 8
-                }} className="fade-in">
+              {scheduleLogs.map((log, index) => (
+                <div
+                  key={index}
+                  style={{
+                    color: log.includes('ready') || log.includes('finished') || log.includes('complete')
+                      ? '#10B981'
+                      : '#60A5FA',
+                    opacity: index === scheduleLogs.length - 1 ? 1 : 0.7,
+                    marginBottom: 8,
+                  }}
+                  className="fade-in"
+                >
                   <span style={{ color: '#475569', marginRight: 12 }}>{new Date().toISOString().split('T')[1].slice(0, 8)}</span>
                   {log}
                 </div>
               ))}
-              {scheduleLogs.length > 0 && !scheduleLogs[scheduleLogs.length - 1].includes('complete') && (
+              {scheduleLogs.length > 0 && !scheduleLogs[scheduleLogs.length - 1].includes('finished') && (
                 <div style={{ color: '#475569', marginTop: 12 }} className="blink">_</div>
               )}
             </div>
           </div>
         </div>
       )}
-
     </>
   );
 }

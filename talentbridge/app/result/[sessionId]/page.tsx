@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import type { VerdictResult } from '@/lib/types';
+import { hashStringToRange } from '@/lib/utils/runtime';
 
 export default function ResultPage() {
   const params = useParams();
@@ -12,8 +13,13 @@ export default function ResultPage() {
   const [loading, setLoading] = useState(true);
   const [disputing, setDisputing] = useState(false);
   const [disputeSuccess, setDisputeSuccess] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeRequestedAt, setDisputeRequestedAt] = useState<number | null>(null);
   const [foundJob, setFoundJob] = useState(false);
   const [foundJobLoading, setFoundJobLoading] = useState(false);
+  const [interviewScheduledAt, setInterviewScheduledAt] = useState<number | null>(null);
+  const [interviewMeetingLink, setInterviewMeetingLink] = useState('');
+  const [interviewScheduleNote, setInterviewScheduleNote] = useState('');
 
   // AI Roadmap Generation States
   const [generatingPath, setGeneratingPath] = useState(false);
@@ -22,14 +28,14 @@ export default function ResultPage() {
 
   const handleGeneratePath = async () => {
     setGeneratingPath(true);
-    setAiLogs(['[AI] Analyzing your verified strengths and identified gaps...']);
+    setAiLogs(['[AI] Analyzing your verified strengths and identified gaps from this interview...']);
     
     const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
     
     await delay(1200);
-    setAiLogs(prev => [...prev, '[AI] Searching global web for optimal learning resources...']);
+    setAiLogs(prev => [...prev, '[AI] Building a tailored demo roadmap from the stored verdict data...']);
     await delay(1500);
-    setAiLogs(prev => [...prev, `[AI] Found high-yield courses matching gap: ${verdict?.identified_gaps?.[0] || 'Technical tooling'}`]);
+    setAiLogs(prev => [...prev, `[AI] Mapping focused practice resources to gap: ${verdict?.identified_gaps?.[0] || 'Technical tooling'}`]);
     await delay(1000);
     setAiLogs(prev => [...prev, '[AI] Structuring 3-week intensive roadmap...']);
     await delay(800);
@@ -59,6 +65,11 @@ export default function ResultPage() {
       if (sessionRes.ok) {
         const s = await sessionRes.json();
         setCandidateName(s.candidateName);
+        setFoundJob(Boolean(s.foundJob));
+        setDisputeRequestedAt(s.disputeRequestedAt ?? null);
+        setInterviewScheduledAt(s.interviewScheduledAt ?? null);
+        setInterviewMeetingLink(s.interviewMeetingLink ?? '');
+        setInterviewScheduleNote(s.interviewScheduleNote ?? '');
       }
 
       // Poll for verdict
@@ -178,6 +189,9 @@ export default function ResultPage() {
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {(verdict.verified_strengths || verdict.strengths || []).map((s, i) => (
+                (() => {
+                  const strengthWidth = hashStringToRange(`${s}-${i}`, 75, 95);
+                  return (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ color: '#065F46', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
@@ -187,12 +201,14 @@ export default function ResultPage() {
                   <div style={{ height: 6, background: '#D1FAE5', borderRadius: 3, overflow: 'hidden' }}>
                     <div style={{ 
                       height: '100%', 
-                      width: `${75 + Math.random() * 20}%`, 
+                      width: `${strengthWidth}%`, 
                       background: 'linear-gradient(90deg, #10B981, #34D399)',
                       borderRadius: 3
                     }} />
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
           </div>
@@ -226,7 +242,7 @@ export default function ResultPage() {
               {!pathGenerated && !generatingPath ? (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
                   <p style={{ color: '#92400E', fontSize: 14, marginBottom: 24, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
-                    You have strong foundational qualities, but we identified a specific gap in <strong>{verdict.identified_gaps?.[0] || 'technical tooling'}</strong>. Let our AI curate a personalized learning path from the web.
+                    You have strong foundational qualities, but we identified a specific gap in <strong>{verdict.identified_gaps?.[0] || 'technical tooling'}</strong>. Generate a tailored demo learning path based on your interview evidence and saved roadmap data.
                   </p>
                   <button 
                     onClick={handleGeneratePath}
@@ -236,7 +252,7 @@ export default function ResultPage() {
                       fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
                       boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)'
                     }}>
-                    Generate Custom Path with AI
+                    Generate Demo Learning Path
                   </button>
                 </div>
               ) : generatingPath ? (
@@ -252,7 +268,7 @@ export default function ResultPage() {
               ) : (
                 <div className="fade-in">
                   <p style={{ color: '#92400E', fontSize: 14, marginBottom: 32, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
-                    AI has curated this 3-week intensive path for you. Complete this to be automatically re-evaluated.
+                    This demo roadmap shows how a guided 3-week path could be structured from your interview result. Complete it and you can return for a fresh evaluation.
                   </p>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'relative' }}>
@@ -370,17 +386,57 @@ export default function ResultPage() {
                 <span style={{ fontSize: 18 }}>📅</span> Next Steps
               </h3>
               <p style={{ color: '#065F46', fontSize: 14, lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-                Your verified profile has been prioritized for the employer. If they choose to proceed, our <strong>Integration Agent</strong> will automatically email you with available interview timeslots. 
+                {interviewScheduledAt
+                  ? 'The employer has moved you forward and a scheduling preview has been prepared for the next interview step.'
+                  : 'Your verified profile has been prioritized for the employer. If they choose to proceed, the next step in the hiring workflow will be arranged directly by the employer team.'}
               </p>
               <div style={{ marginTop: 16, background: '#F0FDF4', padding: '12px 16px', borderRadius: 12, border: '1px solid #A7F3D0', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#047857', fontFamily: 'var(--font-mono)' }}>Expect an update within 48 hours</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#047857', fontFamily: 'var(--font-mono)' }}>
+                  {interviewScheduledAt ? 'Scheduling preview ready' : 'Expect an update within 48 hours'}
+                </span>
               </div>
+              {interviewScheduledAt ? (
+                <div style={{ marginTop: 16, background: '#FFFFFF', border: '1px solid #BBF7D0', borderRadius: 14, padding: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#059669', marginBottom: 8, fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+                    Interview Preview
+                  </div>
+                  <div style={{ fontSize: 14, color: '#065F46', fontFamily: 'var(--font-body)', marginBottom: 8 }}>
+                    {new Date(interviewScheduledAt).toLocaleString('en-MY')}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#047857', fontFamily: 'var(--font-body)', marginBottom: 10 }}>
+                    {interviewScheduleNote || 'Demo scheduling preview is ready. External services remain simulated.'}
+                  </div>
+                  {interviewMeetingLink ? (
+                    <a
+                      href={interviewMeetingLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#ECFDF5',
+                        color: '#047857',
+                        border: '1px solid #A7F3D0',
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      Open Preview Link
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           )}
 
           {/* Dispute Flow */}
-          {!disputeSuccess ? (
+          {!disputeSuccess && !disputeRequestedAt ? (
             <div style={{ background: '#FFFFFF', border: '1.5px solid #E5E7EB', borderRadius: 24, padding: '32px', marginTop: 12 }}>
               <h3 style={{ 
                 fontSize: 14, fontWeight: 800, color: '#0A0C12', 
@@ -395,6 +451,8 @@ export default function ResultPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <textarea 
                     placeholder="Briefly explain why you are disputing this result..."
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
                     style={{ 
                       width: '100%', padding: 16, borderRadius: 12, border: '1px solid #E5E7EB',
                       fontFamily: 'var(--font-body)', fontSize: 14, minHeight: 100, resize: 'vertical'
@@ -402,7 +460,25 @@ export default function ResultPage() {
                   />
                   <div style={{ display: 'flex', gap: 12 }}>
                     <button 
-                      onClick={() => setDisputeSuccess(true)}
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/session/${sessionId}/dispute`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reason: disputeReason }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            alert(data.error || 'Could not submit dispute.');
+                            return;
+                          }
+                          setDisputeRequestedAt(data.disputeRequestedAt);
+                          setDisputeSuccess(true);
+                          setDisputing(false);
+                        } catch {
+                          alert('Network error. Please try again.');
+                        }
+                      }}
                       style={{ 
                         background: '#0A0C12', color: '#FFFFFF', padding: '10px 24px', 
                         borderRadius: 8, fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' 
@@ -436,7 +512,10 @@ export default function ResultPage() {
               <span style={{ fontSize: 20 }}>✓</span>
               <div>
                 <div style={{ fontWeight: 700, color: '#065F46', fontSize: 14 }}>Dispute Submitted</div>
-                <div style={{ color: '#047857', fontSize: 13 }}>Our human review team will review this session within 72 hours.</div>
+                <div style={{ color: '#047857', fontSize: 13 }}>
+                  Our human review team will review this session within 72 hours.
+                  {disputeRequestedAt ? ` Submitted ${new Date(disputeRequestedAt).toLocaleString('en-MY')}.` : ''}
+                </div>
               </div>
             </div>
           )}

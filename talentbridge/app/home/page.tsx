@@ -178,7 +178,7 @@ export default async function HomePage() {
             lineHeight: 1.12,
             marginBottom: 16,
           }}>
-            The interview that<br />can't be gamed.
+            The interview that<br />can&apos;t be gamed.
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, marginBottom: 36 }}>
             Our agents have never seen a resume. They evaluate what candidates

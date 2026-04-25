@@ -13,7 +13,7 @@ import Counter from '@/components/Counter';
 const STATS = [
   { value: '200K+', label: 'Malaysian grads ghosted yearly' },
   { value: '73%', label: 'Never receive any reply' },
-  { value: '7', label: 'Specialised AI agents' },
+  { value: '8', label: 'Specialised workflow agents' },
   { value: '92/100', label: 'Average prompt score' },
 ];
 
@@ -33,7 +33,7 @@ const FEATURES = [
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
-    title: '7-Agent AI Pipeline',
+    title: '8-Agent Workflow',
     desc: 'Mapper → QA → Strategist → Inquisitor → Sentinel → Style Analyzer → Auditor. Airtight separation of concerns.',
   },
   {
@@ -231,7 +231,7 @@ export default function LandingPage() {
               fontFamily: 'var(--font-body)',
             }}
           >
-            TalentBridge AI runs a 7-agent pipeline that extracts competency dimensions from your JD,
+            TalentBridge AI runs an 8-agent workflow that extracts competency dimensions from your JD,
             conducts a structured interview, and delivers bias-stripped verdicts — automatically.
           </p>
 
@@ -480,7 +480,7 @@ export default function LandingPage() {
 
         <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 72 }}>
-            <div className="label" style={{ color: '#2563EB', marginBottom: 16 }}>7-Agent Architecture</div>
+            <div className="label" style={{ color: '#2563EB', marginBottom: 16 }}>8-Agent Architecture</div>
             <h2 className="heading-2" style={{ color: '#F9FAFB', marginBottom: 16 }}>
               The pipeline behind every verdict
             </h2>
@@ -841,9 +841,8 @@ export default function LandingPage() {
                 Integrate TalentBridge into your existing stack
               </h2>
               <p className="body-large" style={{ maxWidth: 640, margin: '0 auto 48px', color: '#94A3B8' }}>
-                Build custom recruitment workflows with our robust API. 
-                Trigger sessions from your ATS, listen to verdict webhooks, 
-                and automate the hiring pipeline with 99.9% reliability.
+                Explore how TalentBridge could plug into a broader recruitment stack.
+                This demo showcases the interview engine and the shape of future integration workflows.
               </p>
               
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
@@ -912,7 +911,7 @@ export default function LandingPage() {
             marginBottom: 48, fontFamily: 'var(--font-body)',
           }}>
             Post your first role in under 2 minutes.
-            The 7-agent pipeline handles everything from extraction to verdict.
+            The 8-agent workflow handles everything from extraction to verdict and follow-up preview.
           </p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/hr/upload" className="btn-accent" style={{ height: 52, padding: '0 36px', fontSize: 16 }}>

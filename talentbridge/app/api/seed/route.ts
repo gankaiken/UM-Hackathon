@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { jdCache, sessions, transcripts } from '@/lib/db/schema';
 import { v4 as uuid } from 'uuid';
+import { NextResponse } from 'next/server';
+import type { Confidence, VerdictResult } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,21 +57,21 @@ export async function GET() {
         ? ['Go-to-Market Strategy', 'Cross-functional Leadership', 'Market Research', 'Content Creation']
         : ['React & UI Execution', 'State Management', 'Problem Solving', 'Adaptability'];
 
-      let dimScores: any = {};
+      const dimScores: VerdictResult['dimension_scores'] = {};
       dims.forEach(d => {
         // Random score based on triage
-        let base = c.triage === 'GREEN' ? 75 : c.triage === 'AMBER' ? 55 : 20;
-        let s = Math.min(100, Math.max(0, base + Math.floor(Math.random() * 25)));
+        const base = c.triage === 'GREEN' ? 75 : c.triage === 'AMBER' ? 55 : 20;
+        const s = Math.min(100, Math.max(0, base + Math.floor(Math.random() * 25)));
         dimScores[d] = {
           score: s,
-          confidence: s > 70 ? 'high' : 'medium',
+          confidence: (s > 70 ? 'high' : 'medium') as Confidence,
           key_evidence: 'Demonstrated clear reasoning.'
         };
       });
 
       const sentinelData = c.triage === 'RED' 
-        ? { focus_loss_events: 5, total_away_duration_seconds: 40, paste_events: 3, tab_switches: 4 }
-        : { focus_loss_events: 0, total_away_duration_seconds: 0, paste_events: 0, tab_switches: 0 };
+        ? { focus_loss_events: 5, total_away_duration_seconds: 40, paste_events: 3, tab_switches: 4, answer_timings_ms: [18000, 22000, 110000], last_answer_elapsed_ms: 110000, timing_anomaly_count: 1, last_answer_timing_anomaly: true, ai_paste_detected: false, ai_paste_char_count: 0 }
+        : { focus_loss_events: 0, total_away_duration_seconds: 0, paste_events: 0, tab_switches: 0, answer_timings_ms: [], last_answer_elapsed_ms: 0, timing_anomaly_count: 0, last_answer_timing_anomaly: false, ai_paste_detected: false, ai_paste_char_count: 0 };
 
       await db.insert(sessions).values({
         id: sId,
@@ -104,14 +105,15 @@ export async function GET() {
           status: 'active',
           turnCount: Math.floor(Math.random() * 5) + 1,
           coverageMap: '{}',
-          sentinelData: '{"focus_loss_events":0,"total_away_duration_seconds":0,"paste_events":0,"tab_switches":0}',
+          sentinelData: '{"focus_loss_events":0,"total_away_duration_seconds":0,"paste_events":0,"tab_switches":0,"answer_timings_ms":[],"last_answer_elapsed_ms":0,"timing_anomaly_count":0,"last_answer_timing_anomaly":false,"ai_paste_detected":false,"ai_paste_char_count":0}',
           createdAt: Date.now() - Math.floor(Math.random() * 1000 * 60 * 60), // recently
         });
       }
     }
 
     return NextResponse.json({ success: true, message: 'Database seeded successfully with beautiful dummy data.' });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

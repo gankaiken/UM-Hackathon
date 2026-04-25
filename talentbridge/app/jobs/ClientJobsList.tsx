@@ -3,8 +3,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building, MapPin, Briefcase, Search } from 'lucide-react';
+import type { JdCache } from '@/lib/db/schema';
 
-export default function ClientJobsList({ jobs }: { jobs: any[] }) {
+type JobListItem = Pick<JdCache, 'id' | 'roleTitle' | 'employerId' | 'mapperOutput' | 'rawJd'>;
+
+export default function ClientJobsList({ jobs }: { jobs: JobListItem[] }) {
   const [search, setSearch] = useState('');
   const router = useRouter();
 

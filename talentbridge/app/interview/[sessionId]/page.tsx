@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import SentinelTracker from '@/components/candidate/SentinelTracker';
 import DebugPanel from '@/components/candidate/DebugPanel';
 import { useSentinelStore } from '@/store/sentinelStore';
-import type { TranscriptEntry } from '@/lib/types';
+import type { TranscriptEntry, SentinelData } from '@/lib/types';
+import { buildMessageId, getCurrentTimestamp } from '@/lib/utils/runtime';
 
 type ChatState = 'loading' | 'entry' | 'chatting' | 'closing' | 'verdict_pending' | 'done';
 interface Message {
@@ -13,6 +14,16 @@ interface Message {
   role: 'inquisitor' | 'candidate';
   content: string;
   isStreaming?: boolean;
+}
+
+interface SessionPayload {
+  candidateName: string;
+  mapperResult?: { role_title?: string };
+  turnCount: number;
+  coverageMap?: Record<string, string>;
+  sentinelData?: Partial<SentinelData>;
+  transcript: Array<TranscriptEntry & { strategistJson?: { reasoning?: string } }>;
+  status: string;
 }
 
 const TIMELINE_STEPS = [
@@ -41,48 +52,19 @@ export default function InterviewPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const { data: sentinelData } = useSentinelStore();
+  const questionPresentedAtRef = useRef<number | null>(null);
+  const {
+    data: sentinelData,
+    hydrate: hydrateSentinel,
+    beginQuestionWindow,
+    recordAnswerTiming,
+  } = useSentinelStore();
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    async function loadSession() {
-      try {
-        const res = await fetch(`/api/session/${sessionId}`);
-        if (!res.ok) { setState('entry'); return; }
-        const sessionData = await res.json();
-        setCandidateName(sessionData.candidateName);
-        setRoleTitle(sessionData.mapperResult?.role_title ?? 'this role');
-        setTurnCount(sessionData.turnCount);
-        setDebugMap(sessionData.coverageMap || {});
-        if (sessionData.transcript?.length > 0) {
-          const lastInq = sessionData.transcript.filter((t: any) => t.role === 'inquisitor').pop();
-          if (lastInq && lastInq.strategistJson?.reasoning) {
-            setDebugReasoning(lastInq.strategistJson.reasoning);
-          }
-        }
-
-        if (sessionData.status === 'completed') { router.push(`/result/${sessionId}`); return; }
-        if (sessionData.candidateName && sessionData.transcript.length > 0) {
-          const restored: Message[] = sessionData.transcript.map((t: TranscriptEntry) => ({
-            id: `${t.role}-${t.turnNumber}`, role: t.role, content: t.content,
-          }));
-          setMessages(restored);
-          setState('chatting');
-        } else if (sessionData.candidateName) {
-          setState('chatting');
-          sendFirstQuestion(sessionData.candidateName, sessionData.mapperResult?.role_title);
-        } else {
-          setState('entry');
-        }
-      } catch { setState('entry'); }
-    }
-    loadSession();
-  }, [sessionId, router]);
 
   async function sendFirstQuestion(name: string, role: string) {
     setIsWaiting(true);
@@ -93,8 +75,15 @@ export default function InterviewPage() {
   async function handleSend() {
     const text = inputValue.trim();
     if (!text || isWaiting) return;
+
+    const elapsedMs = questionPresentedAtRef.current !== null
+      ? getCurrentTimestamp() - questionPresentedAtRef.current
+      : 0;
+    recordAnswerTiming(elapsedMs, text.length);
+    questionPresentedAtRef.current = null;
+
     setInputValue('');
-    const candidateMsg: Message = { id: `candidate-${Date.now()}`, role: 'candidate', content: text };
+    const candidateMsg: Message = { id: buildMessageId('candidate'), role: 'candidate', content: text };
     setMessages(prev => [...prev, candidateMsg]);
     setIsWaiting(true);
     await sendMessage(text, candidateName, roleTitle);
@@ -113,7 +102,7 @@ export default function InterviewPage() {
       });
       if (!res.ok || !res.body) throw new Error('Chat API error');
       
-      const aiMsgId = `ai-${Date.now()}`;
+      const aiMsgId = buildMessageId('ai');
       setMessages(prev => {
         // Remove any previous error message if present
         const clean = prev.filter(m => !m.id.startsWith('err-'));
@@ -147,7 +136,14 @@ export default function InterviewPage() {
             setTurnCount(doneData.turnCount);
             if (doneData.coverageMap) setDebugMap(doneData.coverageMap);
             if (doneData.reasoning) setDebugReasoning(doneData.reasoning);
-            if (doneData.closing) { setState('closing'); setTimeout(triggerVerdict, 1500); }
+            if (doneData.closing) {
+              setState('closing');
+              questionPresentedAtRef.current = null;
+              setTimeout(triggerVerdict, 1500);
+            } else {
+              questionPresentedAtRef.current = getCurrentTimestamp();
+              beginQuestionWindow();
+            }
           }
         }
       }
@@ -157,14 +153,15 @@ export default function InterviewPage() {
         if (attempt < 3) {
           setMessages(prev => {
             const clean = prev.filter(m => !m.id.startsWith('err-'));
-            return [...clean, { id: `err-${Date.now()}`, role: 'inquisitor', content: `Connection slow. Reconnecting (attempt ${attempt}/3)...` }];
+            return [...clean, { id: buildMessageId('err'), role: 'inquisitor', content: `Connection slow. Reconnecting (attempt ${attempt}/3)...` }];
           });
           setTimeout(() => sendMessage(message, name, _role, attempt + 1), 2500);
         } else {
           setMessages(prev => {
             const clean = prev.filter(m => !m.id.startsWith('err-'));
-            return [...clean, { id: `err-${Date.now()}`, role: 'inquisitor', content: 'Network connection lost. Please refresh the page to resume.' }];
+            return [...clean, { id: buildMessageId('err'), role: 'inquisitor', content: 'Network connection lost. Please refresh the page to resume.' }];
           });
+          questionPresentedAtRef.current = getCurrentTimestamp();
         }
       }
     }
@@ -187,6 +184,49 @@ export default function InterviewPage() {
       }, 2000);
     } catch { setState('done'); }
   }
+
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const res = await fetch(`/api/session/${sessionId}`);
+        if (!res.ok) { setState('entry'); return; }
+        const sessionData = await res.json() as SessionPayload;
+        const initialRoleTitle = sessionData.mapperResult?.role_title ?? 'this role';
+
+        setCandidateName(sessionData.candidateName);
+        setRoleTitle(initialRoleTitle);
+        setTurnCount(sessionData.turnCount);
+        setDebugMap(sessionData.coverageMap || {});
+        hydrateSentinel(sessionData.sentinelData || {});
+        if (sessionData.transcript?.length > 0) {
+          const lastInq = sessionData.transcript.filter(t => t.role === 'inquisitor').pop();
+          if (lastInq && lastInq.strategistJson?.reasoning) {
+            setDebugReasoning(lastInq.strategistJson.reasoning);
+          }
+        }
+
+        if (sessionData.status === 'completed') { router.push(`/result/${sessionId}`); return; }
+        if (sessionData.candidateName && sessionData.transcript.length > 0) {
+          const restored: Message[] = sessionData.transcript.map((t: TranscriptEntry) => ({
+            id: `${t.role}-${t.turnNumber}`, role: t.role, content: t.content,
+          }));
+          setMessages(restored);
+          setState('chatting');
+          questionPresentedAtRef.current = getCurrentTimestamp();
+          beginQuestionWindow();
+        } else if (sessionData.candidateName) {
+          setState('chatting');
+          sendFirstQuestion(sessionData.candidateName, initialRoleTitle);
+        } else {
+          setState('entry');
+        }
+      } catch {
+        setState('entry');
+      }
+    }
+
+    loadSession();
+  }, [sessionId, router, hydrateSentinel, beginQuestionWindow]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }

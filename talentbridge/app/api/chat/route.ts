@@ -4,7 +4,7 @@ import { sessions, transcripts, jdCache } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { runStrategist } from '@/lib/agents/strategist';
 import { runInquisitorStream } from '@/lib/agents/inquisitor';
-import type { TranscriptEntry } from '@/lib/types';
+import type { SentinelData, TranscriptEntry } from '@/lib/types';
 
 export const maxDuration = 60; // Allow enough time for LLM generation
 
@@ -25,6 +25,10 @@ export async function POST(req: NextRequest) {
 
     const turnNumber = session.turnCount + 1;
     const now = Date.now();
+    const mergedSentinelData = mergeSentinelData(
+      session.sentinelData ? JSON.parse(session.sentinelData) : {},
+      sentinelData || {}
+    );
 
     // 1. Save candidate message
     await db.insert(transcripts).values({
@@ -32,6 +36,7 @@ export async function POST(req: NextRequest) {
       turnNumber,
       role: 'candidate',
       content: message,
+      sentinelSnapshot: JSON.stringify(mergedSentinelData),
       createdAt: now,
     });
 
@@ -54,15 +59,13 @@ export async function POST(req: NextRequest) {
     // 3. Strategist Agent (Determine next move)
     const mapperResult = JSON.parse(jd.mapperOutput);
     const coverageMap = JSON.parse(session.coverageMap);
-    
-    // Simple reality check heuristic based on Sentinel
-    const turnsSinceRealityCheck = session.turnCount; // simplified for demo
+    const turnsSinceRealityCheck = computeTurnsSinceLastRealityCheck(transcriptEntries);
     
     const strategistResult = await runStrategist(
       transcriptEntries,
       mapperResult,
       coverageMap,
-      sentinelData || {},
+      mergedSentinelData,
       turnNumber,
       turnsSinceRealityCheck
     );
@@ -71,7 +74,7 @@ export async function POST(req: NextRequest) {
     await db.update(sessions).set({
       turnCount: turnNumber,
       coverageMap: JSON.stringify(strategistResult.coverage_map),
-      sentinelData: JSON.stringify(sentinelData || {}),
+      sentinelData: JSON.stringify(mergedSentinelData),
     }).where(eq(sessions.id, sessionId));
 
     // 4. Inquisitor Agent (Generate response stream)
@@ -138,4 +141,43 @@ export async function POST(req: NextRequest) {
     console.error('[Chat API Error]', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+function computeTurnsSinceLastRealityCheck(transcript: TranscriptEntry[]) {
+  const candidateTurns = transcript.filter(entry => entry.role === 'candidate').length;
+  const strategistTurns = transcript
+    .filter(entry => entry.role === 'inquisitor' && entry.strategistJson)
+    .map(entry => entry.strategistJson!);
+
+  for (let index = strategistTurns.length - 1; index >= 0; index -= 1) {
+    if (strategistTurns[index].next_action === 'reality_check') {
+      const candidateTurnsAtRealityCheck = strategistTurns[index].turn_number;
+      return Math.max(0, candidateTurns - candidateTurnsAtRealityCheck);
+    }
+  }
+
+  return candidateTurns;
+}
+
+function mergeSentinelData(
+  existing: Partial<SentinelData>,
+  incoming: Partial<SentinelData>
+): SentinelData {
+  return {
+    focus_loss_events: incoming.focus_loss_events ?? existing.focus_loss_events ?? 0,
+    total_away_duration_seconds: incoming.total_away_duration_seconds ?? existing.total_away_duration_seconds ?? 0,
+    paste_events: incoming.paste_events ?? existing.paste_events ?? 0,
+    tab_switches: incoming.tab_switches ?? existing.tab_switches ?? 0,
+    current_question_focus_loss_seconds:
+      incoming.current_question_focus_loss_seconds ?? existing.current_question_focus_loss_seconds ?? 0,
+    current_question_tab_switches:
+      incoming.current_question_tab_switches ?? existing.current_question_tab_switches ?? 0,
+    integrity_stage: incoming.integrity_stage ?? existing.integrity_stage ?? 'clean',
+    answer_timings_ms: incoming.answer_timings_ms ?? existing.answer_timings_ms ?? [],
+    last_answer_elapsed_ms: incoming.last_answer_elapsed_ms ?? existing.last_answer_elapsed_ms ?? 0,
+    timing_anomaly_count: incoming.timing_anomaly_count ?? existing.timing_anomaly_count ?? 0,
+    last_answer_timing_anomaly: incoming.last_answer_timing_anomaly ?? existing.last_answer_timing_anomaly ?? false,
+    ai_paste_detected: incoming.ai_paste_detected ?? existing.ai_paste_detected ?? false,
+    ai_paste_char_count: incoming.ai_paste_char_count ?? existing.ai_paste_char_count ?? 0,
+  };
 }

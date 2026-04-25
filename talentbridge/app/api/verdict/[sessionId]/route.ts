@@ -63,6 +63,7 @@ export async function POST(
     let verdict = null;
     let isValid = false;
     let lastErrors: string[] = [];
+    let invalidDraftCaptured = false;
 
     for (let attempt = 0; attempt < 3; attempt++) {
       console.log(`[Verdict] Auditor attempt ${attempt + 1} for session ${sessionId}`);
@@ -82,13 +83,33 @@ export async function POST(
         break;
       }
 
+      invalidDraftCaptured = true;
       lastErrors = validation.retry_feedback ?? [];
       console.log(`[Verdict] Schema validation failed (attempt ${attempt + 1}):`, lastErrors);
     }
 
     if (!verdict) {
-      // Use last result even if invalid — don't block the candidate
-      verdict = await runAuditor(transcript, mapperResult, sentinelData, styleAnalysis, lastErrors);
+      const escalatedAt = Date.now();
+
+      await db.update(sessions)
+        .set({
+          verdict: null,
+          verdictValid: false,
+          status: 'completed',
+          completedAt: escalatedAt,
+          moderationStatus: 'escalated',
+          moderationErrors: JSON.stringify(lastErrors),
+          moderationEscalatedAt: escalatedAt,
+        })
+        .where(eq(sessions.id, sessionId))
+        .run();
+
+      return NextResponse.json({
+        escalated: true,
+        valid: false,
+        retry_feedback: lastErrors,
+        draftCaptured: invalidDraftCaptured,
+      });
     }
 
     // Save verdict to session
@@ -98,6 +119,9 @@ export async function POST(
         verdictValid: isValid,
         status: 'completed',
         completedAt: Date.now(),
+        moderationStatus: null,
+        moderationErrors: null,
+        moderationEscalatedAt: null,
       })
       .where(eq(sessions.id, sessionId))
       .run();
@@ -121,7 +145,19 @@ export async function GET(
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    if (!session.verdict) return NextResponse.json({ ready: false }, { status: 202 });
+    if (!session.verdict) {
+      if (session.moderationStatus === 'escalated') {
+        return NextResponse.json({
+          ready: true,
+          escalated: true,
+          valid: false,
+          moderationStatus: session.moderationStatus,
+          retry_feedback: session.moderationErrors ? JSON.parse(session.moderationErrors) : [],
+        });
+      }
+
+      return NextResponse.json({ ready: false }, { status: 202 });
+    }
 
     return NextResponse.json({
       ready: true,

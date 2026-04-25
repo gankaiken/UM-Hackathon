@@ -203,7 +203,7 @@ export default function HowItWorksPage() {
       <section style={{ padding: '100px 40px', background: '#F6F8FC' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <div className="label" style={{ color: '#2563EB', marginBottom: 16 }}>The 7-Agent Pipeline</div>
+            <div className="label" style={{ color: '#2563EB', marginBottom: 16 }}>The 8-Agent Workflow</div>
             <h2 className="heading-2" style={{ color: '#0A0C12', marginBottom: 16 }}>How the pipeline works</h2>
             <p className="body-large" style={{ maxWidth: 560, margin: '0 auto' }}>
               Separation of concerns prevents role drift, gaming, and hallucination.
@@ -490,7 +490,7 @@ export default function HowItWorksPage() {
             Ready to hire smarter?
           </h2>
           <p className="body-large" style={{ marginBottom: 48, maxWidth: 520, margin: '0 auto 48px' }}>
-            Post your first role in under 2 minutes. The 7-agent pipeline handles everything.
+            Post your first role in under 2 minutes. The 8-agent workflow handles everything.
           </p>
           <Link href="/hr/upload" className="btn-accent" style={{ padding: '0 36px', height: 52, fontSize: 16 }}>
             Initialize Agent Workflow →
