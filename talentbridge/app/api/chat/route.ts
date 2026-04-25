@@ -5,6 +5,7 @@ import { eq, asc } from 'drizzle-orm';
 import { runStrategist } from '@/lib/agents/strategist';
 import { runInquisitorStream } from '@/lib/agents/inquisitor';
 import type { SentinelData, TranscriptEntry } from '@/lib/types';
+import { normalizeSentinelData } from '@/lib/sentinel';
 
 export const maxDuration = 60; // Allow enough time for LLM generation
 
@@ -163,21 +164,28 @@ function mergeSentinelData(
   existing: Partial<SentinelData>,
   incoming: Partial<SentinelData>
 ): SentinelData {
-  return {
-    focus_loss_events: incoming.focus_loss_events ?? existing.focus_loss_events ?? 0,
-    total_away_duration_seconds: incoming.total_away_duration_seconds ?? existing.total_away_duration_seconds ?? 0,
-    paste_events: incoming.paste_events ?? existing.paste_events ?? 0,
-    tab_switches: incoming.tab_switches ?? existing.tab_switches ?? 0,
+  const merged: SentinelData = {
+    focus_loss_events: Math.max(incoming.focus_loss_events ?? 0, existing.focus_loss_events ?? 0),
+    total_away_duration_seconds: Math.max(
+      incoming.total_away_duration_seconds ?? 0,
+      existing.total_away_duration_seconds ?? 0
+    ),
+    paste_events: Math.max(incoming.paste_events ?? 0, existing.paste_events ?? 0),
+    tab_switches: Math.max(incoming.tab_switches ?? 0, existing.tab_switches ?? 0),
     current_question_focus_loss_seconds:
       incoming.current_question_focus_loss_seconds ?? existing.current_question_focus_loss_seconds ?? 0,
     current_question_tab_switches:
       incoming.current_question_tab_switches ?? existing.current_question_tab_switches ?? 0,
-    integrity_stage: incoming.integrity_stage ?? existing.integrity_stage ?? 'clean',
+    integrity_stage: existing.integrity_stage === 'stage_2_alert'
+      ? 'stage_2_alert'
+      : incoming.integrity_stage ?? existing.integrity_stage ?? 'clean',
     answer_timings_ms: incoming.answer_timings_ms ?? existing.answer_timings_ms ?? [],
     last_answer_elapsed_ms: incoming.last_answer_elapsed_ms ?? existing.last_answer_elapsed_ms ?? 0,
     timing_anomaly_count: incoming.timing_anomaly_count ?? existing.timing_anomaly_count ?? 0,
     last_answer_timing_anomaly: incoming.last_answer_timing_anomaly ?? existing.last_answer_timing_anomaly ?? false,
     ai_paste_detected: incoming.ai_paste_detected ?? existing.ai_paste_detected ?? false,
-    ai_paste_char_count: incoming.ai_paste_char_count ?? existing.ai_paste_char_count ?? 0,
+    ai_paste_char_count: Math.max(incoming.ai_paste_char_count ?? 0, existing.ai_paste_char_count ?? 0),
   };
+
+  return normalizeSentinelData(merged);
 }

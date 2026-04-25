@@ -102,7 +102,7 @@ export default async function HomePage() {
             lineHeight: 1.55, maxWidth: 580, margin: '0 auto 40px',
           }}>
             TalentBridge runs structured AI interviews that assess real‑world competency —
-            without bias, without gatekeeping, without ghosting.
+            with bias-aware scoring, response tracking, and clear candidate outcomes.
           </p>
 
           {/* CTAs */}

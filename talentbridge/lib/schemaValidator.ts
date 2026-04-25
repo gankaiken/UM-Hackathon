@@ -53,8 +53,8 @@ export function validateAuditorOutput(
     }
   }
 
-  // Rule 6: Sentinel Stage 2 must trigger human review
-  if (sentinelData.focus_loss_events > 3 && sentinelData.paste_events > 1) {
+  // Rule 6: explicit Sentinel Stage 2 must trigger human review
+  if (sentinelData.integrity_stage === 'stage_2_alert') {
     if (!verdict.human_review_required) {
       errors.push('Sentinel Stage 2 fired but human_review_required is false');
     }

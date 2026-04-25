@@ -1,10 +1,12 @@
 // app/jobs/[id]/apply/page.tsx — Premium Apply Portal v3.0
 import { db } from '@/lib/db';
-import { jdCache } from '@/lib/db/schema';
+import { jdCache, sessions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import ApplyForm from './client-form';
 import Link from 'next/link';
+import { calculateEmployerReputation } from '@/lib/hrReputation';
+import { getCurrentTimestamp } from '@/lib/utils/runtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +19,18 @@ export default async function JobApplyPage({ params }: { params: Promise<{ id: s
   }
 
   const employerName = job.employerId === 'default' ? 'Nexus Digital Sdn Bhd' : job.employerId;
+  const reputationRows = await db
+    .select({
+      employerId: jdCache.employerId,
+      verdict: sessions.verdict,
+      completedAt: sessions.completedAt,
+      hrRespondedAt: sessions.hrRespondedAt,
+    })
+    .from(sessions)
+    .leftJoin(jdCache, eq(sessions.jdId, jdCache.id))
+    .where(eq(jdCache.employerId, job.employerId))
+    .all();
+  const reputation = calculateEmployerReputation(job.employerId, reputationRows, getCurrentTimestamp());
 
   return (
     <div className="fade-in" style={{ 
@@ -61,6 +75,26 @@ export default async function JobApplyPage({ params }: { params: Promise<{ id: s
             <p style={{ fontSize: 15, color: '#6B7280', fontFamily: 'var(--font-body)' }}>
               at {employerName}
             </p>
+            {reputation.candidateWarning && (
+              <div
+                title="This employer has a low recent response rate on completed verdict cards."
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  marginTop: 14,
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  background: '#FFFBEB',
+                  border: '1px solid #FDE68A',
+                  color: '#B45309',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                Low Response Rate
+              </div>
+            )}
           </div>
 
           <div style={{ 
@@ -78,7 +112,7 @@ export default async function JobApplyPage({ params }: { params: Promise<{ id: s
               </svg>
             </div>
             <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-              This is a structured, <strong>4-minute AI interview</strong>. Every candidate receives a response. No resume required.
+              This is a structured, <strong>4-minute AI interview</strong>. Your outcome is tracked in TalentBridge when it is ready. No resume required.
             </div>
           </div>
 

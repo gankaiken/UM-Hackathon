@@ -6,7 +6,8 @@ import { db } from '@/lib/db';
 import { sessions, jdCache } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
-import type { CoverageMap, SentinelData } from '@/lib/types';
+import type { CoverageMap } from '@/lib/types';
+import { DEFAULT_SENTINEL_DATA } from '@/lib/sentinel';
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,22 +43,6 @@ export async function POST(req: NextRequest) {
       initialCoverageMap[dim] = 'UNEXPLORED';
     }
 
-    const initialSentinel: SentinelData = {
-      focus_loss_events: 0,
-      total_away_duration_seconds: 0,
-      paste_events: 0,
-      tab_switches: 0,
-      current_question_focus_loss_seconds: 0,
-      current_question_tab_switches: 0,
-      integrity_stage: 'clean',
-      answer_timings_ms: [],
-      last_answer_elapsed_ms: 0,
-      timing_anomaly_count: 0,
-      last_answer_timing_anomaly: false,
-      ai_paste_detected: false,
-      ai_paste_char_count: 0,
-    };
-
     const sessionId = uuid();
     const now = Date.now();
 
@@ -74,7 +59,7 @@ export async function POST(req: NextRequest) {
       status: 'active',
       turnCount: 0,
       coverageMap: JSON.stringify(initialCoverageMap),
-      sentinelData: JSON.stringify(initialSentinel),
+      sentinelData: JSON.stringify(DEFAULT_SENTINEL_DATA),
       createdAt: now,
     });
 

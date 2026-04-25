@@ -9,6 +9,7 @@ import { eq, asc } from 'drizzle-orm';
 import { runAuditor } from '@/lib/agents/auditor';
 import { validateAuditorOutput } from '@/lib/schemaValidator';
 import type { TranscriptEntry, SentinelData, StyleAnalysisResult } from '@/lib/types';
+import { normalizeSentinelData } from '@/lib/sentinel';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +27,7 @@ export async function POST(
     if (!jd) return NextResponse.json({ error: 'JD not found' }, { status: 404 });
 
     const mapperResult = JSON.parse(jd.mapperOutput);
-    const sentinelData: SentinelData = JSON.parse(session.sentinelData || '{}');
+    const sentinelData: SentinelData = normalizeSentinelData(JSON.parse(session.sentinelData || '{}'));
     let styleAnalysis: StyleAnalysisResult | null = session.styleAnalysis
       ? JSON.parse(session.styleAnalysis)
       : null;
@@ -45,9 +46,8 @@ export async function POST(
       createdAt: t.createdAt,
     }));
 
-    // Trigger Language Style Analyzer conditionally if Sentinel Stage 2 fires
-    // Stage 2: focus_loss_events > 3 AND paste_events > 1
-    if (!styleAnalysis && sentinelData.focus_loss_events > 3 && sentinelData.paste_events > 1) {
+    // Trigger Language Style Analyzer conditionally if the explicit Sentinel Stage 2 state fires.
+    if (!styleAnalysis && sentinelData.integrity_stage === 'stage_2_alert') {
       console.log(`[Verdict] Sentinel Stage 2 detected. Triggering Language Style Analyzer...`);
       const { runLanguageStyleAnalyzer } = await import('@/lib/agents/langStyleAnalyzer');
       styleAnalysis = await runLanguageStyleAnalyzer(transcript);

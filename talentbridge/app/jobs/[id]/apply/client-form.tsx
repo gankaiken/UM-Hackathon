@@ -305,7 +305,7 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
           </div>
 
           <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-            4-minute structured interview. Every candidate receives a personalised outcome. No ghosting.
+            4-minute structured interview. Your personalised outcome is tracked when it is ready.
           </p>
         </form>
       )}

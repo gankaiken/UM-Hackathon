@@ -53,7 +53,7 @@ const FEATURES = [
       </svg>
     ),
     title: 'No One Gets Ghosted',
-    desc: 'HR Reputation Score tracks every employer response. Delayed replies are logged. Candidates always hear back.',
+    desc: 'HR Reputation Score tracks employer response behavior privately. Delayed replies are logged and low-response employers can be warned on candidate surfaces.',
   },
   {
     icon: (
@@ -345,7 +345,7 @@ export default function LandingPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {[
                 { problem: 'CV inauthenticity (AI-generated)', solution: 'Multi-layer behavioural + style forensics', icon: '🛡' },
-                { problem: 'Candidate ghosting', solution: 'HR Reputation Score — tracked publicly', icon: '📡' },
+                { problem: 'Candidate ghosting', solution: 'Private HR response score with candidate-safe warnings', icon: '📡' },
                 { problem: 'No feedback on rejection', solution: 'Amber upskill path / Red career redirect', icon: '🚀' },
               ].map((item, i) => (
                 <div

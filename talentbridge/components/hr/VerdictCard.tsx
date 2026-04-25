@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { HrResponse, VerdictResult, SentinelData, StrategistResult } from '@/lib/types';
 import type { Session, JdCache, Transcript } from '@/lib/db/schema';
+import { normalizeSentinelData } from '@/lib/sentinel';
 
 interface Props {
   session: Session;
@@ -19,7 +20,7 @@ const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: stri
 
 export default function VerdictCard({ session, jd, transcripts }: Props) {
   const verdict: VerdictResult = JSON.parse(session.verdict!);
-  const sentinelData: SentinelData = JSON.parse(session.sentinelData);
+  const sentinelData: SentinelData = normalizeSentinelData(JSON.parse(session.sentinelData));
   const [activeTab, setActiveTab] = useState<'overview' | 'trace' | 'sentinel' | 'transcript'>('overview');
   const [hrResponse, setHrResponse] = useState<HrResponse | null>(
     session.hrResponse === 'offer' || session.hrResponse === 'hold' || session.hrResponse === 'reject'
@@ -39,7 +40,7 @@ export default function VerdictCard({ session, jd, transcripts }: Props) {
     Math.max(1, Object.keys(verdict.dimension_scores).length)
   );
   const triage = verdict.triage_result as 'GREEN' | 'AMBER' | 'RED';
-  const isFlagged = sentinelData.focus_loss_events > 3 && sentinelData.paste_events > 1;
+  const isFlagged = sentinelData.integrity_stage === 'stage_2_alert';
 
   const triageMeta = {
     GREEN: { color: '#059669', bg: 'rgba(16,185,129,0.08)', border: '#BBF7D0', label: 'Fast-Track' },

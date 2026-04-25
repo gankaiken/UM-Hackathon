@@ -4,6 +4,7 @@ import { sessions, jdCache } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import Link from 'next/link';
 import type { VerdictResult } from '@/lib/types';
+import { normalizeSentinelData } from '@/lib/sentinel';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,8 +127,8 @@ export default async function VerdictsPage() {
 
               let isFlagged = false;
               try {
-                const sentinel = JSON.parse(session.sentinelData);
-                isFlagged = sentinel.focus_loss_events > 3 && sentinel.paste_events > 1;
+                const sentinel = normalizeSentinelData(JSON.parse(session.sentinelData));
+                isFlagged = sentinel.integrity_stage === 'stage_2_alert';
               } catch { /* ignore */ }
 
               const avgScore = verdict.overall_score ?? Math.round(

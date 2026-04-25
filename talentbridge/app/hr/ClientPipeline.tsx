@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { HrResponse, VerdictResult, DimensionScore, SentinelData } from '@/lib/types';
 import type { Session } from '@/lib/db/schema';
 import { getCurrentTimestamp } from '@/lib/utils/runtime';
+import { normalizeSentinelData } from '@/lib/sentinel';
 
 const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
 const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: string; border: string }> = {
@@ -165,8 +166,8 @@ export default function ClientPipeline({ completed }: { completed: CompletedSess
         triage = (verdict.triage_result || 'RED').toUpperCase();
       }
       if (item.session?.sentinelData) {
-        const sentinel = JSON.parse(item.session.sentinelData) as SentinelData;
-        isFlagged = (sentinel.focus_loss_events > 3 && sentinel.paste_events > 1) || Boolean(sentinel.ai_paste_detected);
+        const sentinel = normalizeSentinelData(JSON.parse(item.session.sentinelData) as Partial<SentinelData>);
+        isFlagged = sentinel.integrity_stage === 'stage_2_alert' || Boolean(sentinel.ai_paste_detected);
       }
     } catch {
       // Keep the row visible even if a malformed seed payload slips through.

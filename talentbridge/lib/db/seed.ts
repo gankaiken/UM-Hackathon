@@ -4,9 +4,14 @@
 
 import { db } from './index';
 import { jdCache, sessions, transcripts } from './schema';
+import { DEFAULT_SENTINEL_DATA, normalizeSentinelData } from '../sentinel';
 
 const SEED_JD_ID_1 = 'seed-jd-mktg-001';
 const SEED_JD_ID_2 = 'seed-jd-tech-001';
+
+function seedSentinel(data: Partial<typeof DEFAULT_SENTINEL_DATA>) {
+  return JSON.stringify(normalizeSentinelData({ ...DEFAULT_SENTINEL_DATA, ...data }));
+}
 
 const SEED_SESSIONS = [
   {
@@ -15,7 +20,7 @@ const SEED_SESSIONS = [
     candidateName: 'Aisyah Binti Razali',
     status: 'completed' as const,
     turnCount: 12,
-    sentinelData: JSON.stringify({ focus_loss_events: 1, total_away_duration_seconds: 8, paste_events: 0, tab_switches: 1, answer_timings_ms: [12000, 18000, 25000], last_answer_elapsed_ms: 25000, timing_anomaly_count: 0, last_answer_timing_anomaly: false, ai_paste_detected: false, ai_paste_char_count: 0 }),
+    sentinelData: seedSentinel({ focus_loss_events: 1, total_away_duration_seconds: 8, paste_events: 0, tab_switches: 1, answer_timings_ms: [12000, 18000, 25000], last_answer_elapsed_ms: 25000 }),
     verdict: JSON.stringify({
       triage_result: 'AMBER',
       overall_score: 78,
@@ -42,7 +47,7 @@ const SEED_SESSIONS = [
     candidateName: 'Daniel Lim Jun Wei',
     status: 'completed' as const,
     turnCount: 10,
-    sentinelData: JSON.stringify({ focus_loss_events: 0, total_away_duration_seconds: 0, paste_events: 0, tab_switches: 0, answer_timings_ms: [10000, 14000, 19000], last_answer_elapsed_ms: 19000, timing_anomaly_count: 0, last_answer_timing_anomaly: false, ai_paste_detected: false, ai_paste_char_count: 0 }),
+    sentinelData: seedSentinel({ answer_timings_ms: [10000, 14000, 19000], last_answer_elapsed_ms: 19000 }),
     verdict: JSON.stringify({
       triage_result: 'GREEN',
       overall_score: 84,
@@ -69,7 +74,7 @@ const SEED_SESSIONS = [
     candidateName: 'Anonymous #3',
     status: 'completed' as const,
     turnCount: 4,
-    sentinelData: JSON.stringify({ focus_loss_events: 9, total_away_duration_seconds: 184, paste_events: 5, tab_switches: 8, answer_timings_ms: [9000, 15000, 145000], last_answer_elapsed_ms: 145000, timing_anomaly_count: 1, last_answer_timing_anomaly: true, ai_paste_detected: false, ai_paste_char_count: 0 }),
+    sentinelData: seedSentinel({ focus_loss_events: 9, total_away_duration_seconds: 184, paste_events: 5, tab_switches: 8, answer_timings_ms: [9000, 15000, 145000], last_answer_elapsed_ms: 145000, timing_anomaly_count: 1, last_answer_timing_anomaly: true }),
     verdict: JSON.stringify({
       triage_result: 'RED',
       overall_score: 22,
@@ -96,7 +101,7 @@ const SEED_SESSIONS = [
     candidateName: 'Siti Norzahira Mohd',
     status: 'completed' as const,
     turnCount: 14,
-    sentinelData: JSON.stringify({ focus_loss_events: 0, total_away_duration_seconds: 2, paste_events: 0, tab_switches: 0, answer_timings_ms: [11000, 16000, 21000], last_answer_elapsed_ms: 21000, timing_anomaly_count: 0, last_answer_timing_anomaly: false, ai_paste_detected: false, ai_paste_char_count: 0 }),
+    sentinelData: seedSentinel({ total_away_duration_seconds: 2, answer_timings_ms: [11000, 16000, 21000], last_answer_elapsed_ms: 21000 }),
     verdict: JSON.stringify({
       triage_result: 'GREEN',
       overall_score: 91,
@@ -123,7 +128,7 @@ const SEED_SESSIONS = [
     candidateName: 'Raj Kumar Subramaniam',
     status: 'completed' as const,
     turnCount: 11,
-    sentinelData: JSON.stringify({ focus_loss_events: 2, total_away_duration_seconds: 15, paste_events: 1, tab_switches: 2, answer_timings_ms: [15000, 22000, 48000], last_answer_elapsed_ms: 48000, timing_anomaly_count: 0, last_answer_timing_anomaly: false, ai_paste_detected: false, ai_paste_char_count: 0 }),
+    sentinelData: seedSentinel({ focus_loss_events: 2, total_away_duration_seconds: 15, paste_events: 1, tab_switches: 2, answer_timings_ms: [15000, 22000, 48000], last_answer_elapsed_ms: 48000 }),
     verdict: JSON.stringify({
       triage_result: 'AMBER',
       overall_score: 69,
