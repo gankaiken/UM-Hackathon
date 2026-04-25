@@ -323,7 +323,7 @@ export default function InterviewPage() {
           <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '12px 16px', marginBottom: 24, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ fontSize: 16 }}>⚠️</span>
             <p style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5, fontFamily: 'var(--font-body)', margin: 0 }}>
-              Please stay on this page during the interview. Switching to other tabs or apps will be detected and noted.
+              You only have one chance! Please stay on this page during the interview. Switching to other tabs or apps will be detected and noted.
             </p>
           </div>
 
