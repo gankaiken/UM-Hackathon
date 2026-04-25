@@ -111,7 +111,7 @@ Output the next action as JSON only.`,
           },
         ],
         temperature: 0.3,
-        max_tokens: 1024,
+        max_tokens: 1200,
       }),
       { agentName: 'Strategist' }
     );
@@ -632,48 +632,32 @@ function buildStrategistPrompt(
   contradiction: ContradictionSignal,
   integrityStage: SentinelData['integrity_stage']
 ) {
-  return `You are the Strategist agent for TalentBridge AI — the hidden intelligence directing the interview.
+  return `You are TalentBridge AI Strategist agent, hidden controller of interview flow, reading full conversation and Mapper JSON. Track exactly 5 dimensions from mapper.core_dimensions and probe_targets. Never speak to candidate, only output JSON next_action.
 
-Role: Read the full conversation and decide the EXACT next move. You never speak to the candidate directly.
-
-The 5 dimensions you are tracking:
-${mapper.core_dimensions.map((dimension, index) => `${index + 1}. ${dimension}`).join('\n')}
+Dimensions:
+${mapper.core_dimensions}
 
 Probe targets:
-${mapper.probe_targets.map(target => `- ${target}`).join('\n')}
+${mapper.probe_targets}
 
-Current dimension in focus: ${currentDimension ?? 'none'}
-Coverage states: UNEXPLORED → TOUCHED → DEVELOPING → SUFFICIENT
-Detected contradiction signal: ${contradiction.context ?? 'none'}
+Current dimension: ${currentDimension ?? 'none'}
+Contradiction: ${contradiction?.context ?? 'none'}
+Sentinel stage: ${integrityStage ?? 'clean'}
 
-Priority decision logic (stop at first match):
-1. Sentinel Stage 1 or Stage 2 AND turns_since_last_reality_check >= 3 → reality_check
-2. Strong contradiction signal → resolve_contradiction
-3. Current dimension TOUCHED or DEVELOPING → probe_deeper
-4. Current dimension SUFFICIENT or stalled after 3 probe_deeper turns with zero new Action Nodes → change_dimension
-5. All SUFFICIENT or turn >= 20 → close_session
+Coverage states: UNEXPLORED TOUCHED DEVELOPING SUFFICIENT.
 
-Explicit Sentinel override for current state (${integrityStage ?? 'clean'}): stage_2_alert takes priority over contradiction and normal probing; stage_1_alert takes priority over normal flow once turns_since_last_reality_check >= 3.
+Priority:
+If Sentinel stage_2 OR stage_1 and turns_since_last_reality_check >= 3 → reality_check
+Else if contradiction detected → resolve_contradiction
+Else if current dimension TOUCHED/DEVELOPING → probe_deeper (<3 times)
+Else if SUFFICIENT or stalled → change_dimension
+Else if all SUFFICIENT or turn >= 20 → close_session
 
-Action Node indicators (score ONLY these):
-- Quantified result ("sales up 30%", "12,000 followers")
-- Sought resources when stuck
-- Adapted after failure
-- Demonstrated impact awareness
-- Independent initiative
-- Cause-effect reasoning ("I did X because Y")
+Action Nodes only:
+quantified result, real incident, cause-effect, adaptation, initiative, help-seeking, impact awareness.
 
-Output strict JSON only:
-{
-  "turn_number": number,
-  "turns_since_last_reality_check": number,
-  "next_action": "probe_deeper|change_dimension|reality_check|resolve_contradiction|close_session",
-  "target_dimension": "string",
-  "probe_angle": "exact question guidance for Inquisitor",
-  "contradiction_context": null or "string",
-  "sentinel_override": boolean,
-  "coverage_map": { "dim": "STATE" },
-  "forced_close_log": null or "string",
-  "reasoning": "your internal reasoning — visible in debug panel"
-}`;
+probe_angle = instruction for Inquisitor (grounded if probe_deeper, broad if change_dimension)
+
+Output ONLY JSON:
+turn_number, turns_since_last_reality_check, next_action, target_dimension, probe_angle, contradiction_context, sentinel_override, coverage_map, forced_close_log, reasoning`;
 }
