@@ -5,14 +5,20 @@ import { eq, desc } from 'drizzle-orm';
 import Link from 'next/link';
 import type { VerdictResult } from '@/lib/types';
 import { normalizeSentinelData } from '@/lib/sentinel';
+import { getCurrentHrUser } from '@/lib/hrAuth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function VerdictsPage() {
+  const user = await getCurrentHrUser();
+  if (!user) redirect('/login?next=/verdicts');
+
   const allSessions = await db
     .select({ session: sessions, roleTitle: jdCache.roleTitle })
     .from(sessions)
     .leftJoin(jdCache, eq(sessions.jdId, jdCache.id))
+    .where(eq(sessions.employerId, user.id))
     .orderBy(desc(sessions.createdAt))
     .all();
 

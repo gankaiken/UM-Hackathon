@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { sessions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { DisputeResolution } from '@/lib/types';
+import { assertHrOwnsSession, requireHrUser } from '@/lib/hrAuth';
 
 export async function POST(
   req: NextRequest,
@@ -10,6 +11,9 @@ export async function POST(
 ) {
   try {
     const { sessionId } = await params;
+    const user = requireHrUser(req);
+    if (user instanceof NextResponse) return user;
+
     const { resolution, notes } = await req.json();
 
     if (!['upheld', 'revised', 'fresh_interview'].includes(resolution)) {
@@ -19,10 +23,8 @@ export async function POST(
       );
     }
 
-    const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    }
+    const ownership = await assertHrOwnsSession(user, sessionId);
+    if (!ownership.ok) return ownership.response;
 
     const now = Date.now();
     await db.update(sessions)

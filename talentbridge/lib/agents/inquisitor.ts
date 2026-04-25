@@ -27,14 +27,20 @@ export async function runInquisitorStream(
   const systemPrompt = buildInquisitorPrompt(candidateName);
   const userMessage = buildInquisitorUserMessage(strategistResult, lastCandidateMessage);
 
-  return await zhipuStream({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage },
-    ],
-    temperature: 0.85,
-    max_tokens: 200, // Inquisitor keeps it SHORT
-  });
+  try {
+    return await zhipuStream({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.85,
+      max_tokens: 200, // Inquisitor keeps it SHORT
+    });
+  } catch (error) {
+    console.warn('[Inquisitor] Z.ai stream failed; falling back to mock mode:', error instanceof Error ? error.message : error);
+    logMockUsage('Inquisitor');
+    return createMockStream(mockInquisitorText(strategistResult, candidateName));
+  }
 }
 
 function isMetaQuestion(message: string) {

@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     await db.insert(sessions).values({
       id: sessionId,
       jdId,
+      employerId: jd.employerId,
       candidateName: candidateName.trim(),
       candidateEmail: candidateEmail.trim(),
       candidatePhone: candidatePhone.trim(),
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
       coverageMap: JSON.stringify(initialCoverageMap),
       sentinelData: JSON.stringify(DEFAULT_SENTINEL_DATA),
       createdAt: now,
-    });
+    }).run();
 
     return NextResponse.json({
       sessionId,

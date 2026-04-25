@@ -121,7 +121,16 @@ export default function InterviewPage() {
         body: JSON.stringify({ sessionId, message, sentinelData }),
         signal: abortRef.current.signal,
       });
-      if (!res.ok || !res.body) throw new Error('Chat API error');
+      if (!res.ok || !res.body) {
+        let errorMessage = 'Chat API error';
+        try {
+          const errorPayload = await res.json();
+          errorMessage = errorPayload.error || errorMessage;
+        } catch {
+          // Keep the generic message if the server did not return JSON.
+        }
+        throw new Error(errorMessage);
+      }
       
       const aiMsgId = buildMessageId('ai');
       setMessages(prev => {
@@ -180,7 +189,7 @@ export default function InterviewPage() {
         } else {
           setMessages(prev => {
             const clean = prev.filter(m => !m.id.startsWith('err-'));
-            return [...clean, { id: buildMessageId('err'), role: 'inquisitor', content: 'Network connection lost. Please refresh the page to resume.' }];
+            return [...clean, { id: buildMessageId('err'), role: 'inquisitor', content: `Interview engine error: ${err.message}` }];
           });
           questionPresentedAtRef.current = getCurrentTimestamp();
         }
@@ -336,7 +345,7 @@ export default function InterviewPage() {
             I am ready — Start Interview →
           </button>
           <p style={{ textAlign: 'center', marginTop: 12, fontSize: 12, color: '#9CA3AF', fontFamily: 'var(--font-body)' }}>
-            Your session is recorded for evaluation purposes
+            Your text responses are saved for evaluation purposes
           </p>
         </div>
       </div>
@@ -666,7 +675,7 @@ export default function InterviewPage() {
               </div>
             )}
             <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, fontWeight: 600, color: '#94A3B8', fontFamily: 'var(--font-body)' }}>
-              Interview is recorded for evaluation · Shift + Enter for new line
+              Interview text is saved for evaluation · Shift + Enter for new line
             </div>
           </div>
         </main>

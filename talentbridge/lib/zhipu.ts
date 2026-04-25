@@ -1,16 +1,26 @@
 // lib/zhipu.ts
-// ZhipuAI GLM-4 API client wrapper
+// Z.AI / Zhipu GLM API client wrapper
 // Supports both streaming (SSE) and non-streaming (JSON mode) calls.
-// Docs: https://open.bigmodel.cn/dev/api
+// Docs: https://docs.z.ai/api-reference/llm/chat-completion
 
-const ZHIPU_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4';
+const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4';
+const DEFAULT_MODEL = 'glm-4.5-flash';
+const REQUEST_TIMEOUT_MS = 45_000;
 
 function getApiKey(): string {
-  const key = process.env.ZHIPU_API_KEY;
+  const key = process.env.ZHIPU_API_KEY || process.env.ZAI_API_KEY || process.env.Z_AI_API_KEY;
   if (!key) {
-    throw new Error('ZHIPU_API_KEY environment variable is not set');
+    throw new Error('ZHIPU_API_KEY or ZAI_API_KEY environment variable is not set');
   }
-  return key;
+  return key.trim();
+}
+
+function getBaseUrl() {
+  return (process.env.ZHIPU_BASE_URL || process.env.ZAI_BASE_URL || ZAI_BASE_URL).replace(/\/$/, '');
+}
+
+function getModel(model?: string) {
+  return model || process.env.ZHIPU_MODEL || process.env.ZAI_MODEL || DEFAULT_MODEL;
 }
 
 interface ZhipuMessage {
@@ -29,21 +39,26 @@ interface ZhipuCallOptions {
 
 // ── Non-streaming call — returns full response text ───────────────────────────
 export async function zhipuCall(options: ZhipuCallOptions): Promise<string> {
-  const response = await fetch(`${ZHIPU_BASE_URL}/chat/completions`, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  const response = await fetch(`${getBaseUrl()}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${getApiKey()}`,
     },
+    signal: controller.signal,
     body: JSON.stringify({
-      model: options.model ?? 'glm-4',
+      model: getModel(options.model),
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens ?? 2048,
       stream: false,
       response_format: options.response_format ?? { type: 'text' },
+      thinking: { type: 'disabled' },
     }),
-  });
+  }).finally(() => clearTimeout(timeout));
 
   if (!response.ok) {
     const errText = await response.text();
@@ -75,20 +90,25 @@ export async function zhipuJson<T>(options: Omit<ZhipuCallOptions, 'stream' | 'r
 // ── Streaming call — returns a ReadableStream of text chunks ─────────────────
 // Used by the Inquisitor to stream the interview question character-by-character.
 export async function zhipuStream(options: Omit<ZhipuCallOptions, 'stream'>): Promise<ReadableStream<string>> {
-  const response = await fetch(`${ZHIPU_BASE_URL}/chat/completions`, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  const response = await fetch(`${getBaseUrl()}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${getApiKey()}`,
     },
+    signal: controller.signal,
     body: JSON.stringify({
-      model: options.model ?? 'glm-4',
+      model: getModel(options.model),
       messages: options.messages,
       temperature: options.temperature ?? 0.8,
       max_tokens: options.max_tokens ?? 256, // Inquisitor answers are short
       stream: true,
+      thinking: { type: 'disabled' },
     }),
-  });
+  }).finally(() => clearTimeout(timeout));
 
   if (!response.ok || !response.body) {
     const errText = await response.text();

@@ -8,10 +8,14 @@ import { runMapper } from '@/lib/agents/mapper';
 import { runDimensionQA } from '@/lib/agents/dimensionQA';
 import { v4 as uuid } from 'uuid';
 import type { JdUploadResponse, MapperResult } from '@/lib/types';
+import { requireHrUser } from '@/lib/hrAuth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { jdText, employerId = 'default' } = await req.json();
+    const user = requireHrUser(req);
+    if (user instanceof NextResponse) return user;
+
+    const { jdText } = await req.json();
 
     if (!jdText || typeof jdText !== 'string' || jdText.trim().length < 10) {
       return NextResponse.json({ error: 'JD text is required (min 10 chars)' }, { status: 400 });
@@ -41,7 +45,7 @@ export async function POST(req: NextRequest) {
     // Step 4: Persist to SQLite
     await db.insert(jdCache).values({
       id: jdId,
-      employerId,
+      employerId: user.id,
       rawJd: jdText.trim(),
       roleTitle: finalMapper.role_title,
       mapperOutput: JSON.stringify(finalMapper),
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
       qaOutput: JSON.stringify(qaResult),
       interviewLink,
       createdAt: now,
-    });
+    }).run();
 
     console.log(`[JD Upload] Complete — role: ${finalMapper.role_title}, qaStatus: ${qaResult.status}`);
 

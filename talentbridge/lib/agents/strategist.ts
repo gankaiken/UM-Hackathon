@@ -86,13 +86,15 @@ export async function runStrategist(
     normalizedSentinelData.integrity_stage
   );
 
-  const result = await executeAgent(
-    () => zhipuJson<StrategistResult>({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: `CURRENT STATE:
+  let result: StrategistResult;
+  try {
+    result = await executeAgent(
+      () => zhipuJson<StrategistResult>({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: `CURRENT STATE:
 Turn number: ${turnNumber}
 Turns since last reality check: ${normalizedTurnsSinceRealityCheck}
 Current dimension in focus: ${currentDimension ?? 'none'}
@@ -106,13 +108,25 @@ FULL CONVERSATION:
 ${conversationSummary}
 
 Output the next action as JSON only.`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 1024,
-    }),
-    { agentName: 'Strategist' }
-  );
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 1024,
+      }),
+      { agentName: 'Strategist' }
+    );
+  } catch (error) {
+    console.warn('[Strategist] Z.ai call failed; falling back to mock mode:', error instanceof Error ? error.message : error);
+    logMockUsage('Strategist');
+    result = mockStrategist(
+      turnNumber,
+      derivedCoverageMap,
+      mapper.core_dimensions,
+      normalizedSentinelData.focus_loss_events,
+      normalizedSentinelData.paste_events,
+      normalizedTurnsSinceRealityCheck
+    );
+  }
 
   return finalizeStrategistResult(
     result,
@@ -212,6 +226,8 @@ function finalizeStrategistResult(
       targetDimension;
   }
 
+  probeAngle = avoidRepeatedQuestion(probeAngle, transcript, targetDimension, nextAction);
+
   const reasoningNotes = [
     result.reasoning?.trim(),
     `Coverage refreshed from transcript.`,
@@ -245,6 +261,35 @@ function finalizeStrategistResult(
     forced_close_log: forcedCloseLog,
     reasoning: reasoningNotes.join(' '),
   };
+}
+
+function avoidRepeatedQuestion(
+  probeAngle: string,
+  transcript: TranscriptEntry[],
+  targetDimension: string,
+  nextAction: NextAction
+) {
+  const lastQuestion = [...transcript]
+    .reverse()
+    .find(entry => entry.role === 'inquisitor')?.content;
+
+  if (!lastQuestion || normalizeQuestion(lastQuestion) !== normalizeQuestion(probeAngle)) {
+    return probeAngle;
+  }
+
+  if (nextAction === 'change_dimension') {
+    return `Let us move into ${targetDimension}. Can you share one specific example that shows how you handled this in real work?`;
+  }
+
+  if (nextAction === 'probe_deeper') {
+    return `Can you go one level deeper on ${targetDimension}: what exactly did you do, and what happened after that?`;
+  }
+
+  return `Can you clarify one concrete detail about ${targetDimension} so we can understand your experience better?`;
+}
+
+function normalizeQuestion(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function deriveCoverageMap(

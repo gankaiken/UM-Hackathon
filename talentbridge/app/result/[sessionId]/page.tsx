@@ -246,7 +246,7 @@ export default function ResultPage() {
               {!pathGenerated && !generatingPath ? (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
                   <p style={{ color: '#92400E', fontSize: 14, marginBottom: 24, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
-                    You have strong foundational qualities, but we identified a specific gap in <strong>{verdict.identified_gaps?.[0] || 'technical tooling'}</strong>. Generate a tailored demo learning path based on your interview evidence and saved roadmap data.
+                    You have strong foundational qualities, but we identified a specific gap in <strong>{verdict.identified_gaps?.[0] || 'technical tooling'}</strong>. View a demo learning path generated from your stored interview verdict.
                   </p>
                   <button 
                     onClick={handleGeneratePath}
@@ -256,7 +256,7 @@ export default function ResultPage() {
                       fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
                       boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)'
                     }}>
-                    Generate Demo Learning Path
+                    View Demo Learning Path
                   </button>
                 </div>
               ) : generatingPath ? (
@@ -409,7 +409,7 @@ export default function ResultPage() {
                     {new Date(interviewScheduledAt).toLocaleString('en-MY')}
                   </div>
                   <div style={{ fontSize: 12, color: '#047857', fontFamily: 'var(--font-body)', marginBottom: 10 }}>
-                    {interviewScheduleNote || 'Demo scheduling preview is ready. External services remain simulated.'}
+                    {interviewScheduleNote || 'Scheduling state is ready. Meeting details are shared by the hiring team.'}
                   </div>
                   {interviewMeetingLink ? (
                     <a

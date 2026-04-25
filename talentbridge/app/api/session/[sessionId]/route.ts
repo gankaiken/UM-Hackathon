@@ -24,6 +24,9 @@ export async function GET(
     if (!jd) {
       return NextResponse.json({ error: 'JD not found for session' }, { status: 404 });
     }
+    if (jd.employerId !== session.employerId) {
+      return NextResponse.json({ error: 'Session ownership mismatch' }, { status: 403 });
+    }
 
     const dbTranscripts = await db
       .select()
@@ -58,7 +61,7 @@ export async function GET(
           sessionLifecycleStatus,
           sessionExpiredAt,
           partialProfileCreatedAt
-        }).where(eq(sessions.id, sessionId));
+        }).where(eq(sessions.id, sessionId)).run();
       }
     }
 
@@ -69,7 +72,9 @@ export async function GET(
       // ── Extra info for welcome screen / My Applications ────────
       roleTitle: jd.roleTitle,
       companyName: jd.employerId === 'default' ? 'Nexus Digital Sdn Bhd' : jd.employerId,
-      hrResponse: session.hrResponse,
+      hrResponse: session.hrResponse === 'offer' || session.hrResponse === 'hold' || session.hrResponse === 'reject'
+        ? session.hrResponse
+        : null,
       scheduledSlot: session.scheduledSlot,
       // ───────────────────────────────────────────────────────────
       status: session.status,

@@ -3,11 +3,39 @@
 // Called once on first DB bootstrap if tables are empty
 
 import { db } from './index';
-import { jdCache, sessions, transcripts } from './schema';
+import { jdCache, sessions, transcripts, users } from './schema';
 import { DEFAULT_SENTINEL_DATA, normalizeSentinelData } from '../sentinel';
+import { eq } from 'drizzle-orm';
+import { hashPassword, normalizeEmail } from '../hrAuth';
 
 const SEED_JD_ID_1 = 'seed-jd-mktg-001';
 const SEED_JD_ID_2 = 'seed-jd-tech-001';
+
+const SEED_MARKETING_MAPPER_OUTPUT = {
+  role_title: 'Junior Marketing Executive',
+  core_dimensions: [
+    'Sales & conversion logic',
+    'Customer relationship',
+    'Data awareness',
+    'Adaptability',
+    'Communication clarity',
+  ],
+  probe_targets: ['Google Analytics reporting', 'Social commerce conversion', 'Customer retention'],
+  truncated_input: false,
+};
+
+const SEED_TECH_MAPPER_OUTPUT = {
+  role_title: 'Senior Frontend Developer',
+  core_dimensions: [
+    'Technical breadth',
+    'System design thinking',
+    'Communication clarity',
+    'Problem-solving approach',
+    'Learning velocity',
+  ],
+  probe_targets: ['React architecture decisions', 'TypeScript quality', 'API integration tradeoffs'],
+  truncated_input: false,
+};
 
 function seedSentinel(data: Partial<typeof DEFAULT_SENTINEL_DATA>) {
   return JSON.stringify(normalizeSentinelData({ ...DEFAULT_SENTINEL_DATA, ...data }));
@@ -153,8 +181,12 @@ const SEED_SESSIONS = [
 
 export async function seedIfEmpty() {
   try {
+    await ensureDemoHrUsers();
     const existing = db.select().from(sessions).limit(1).all();
-    if (existing.length > 0) return; // Already seeded
+    if (existing.length > 0) {
+      repairSeedMapperShapes();
+      return; // Already seeded
+    }
 
     // Insert JD records
     const now = Date.now();
@@ -164,17 +196,7 @@ export async function seedIfEmpty() {
         employerId: 'nexus-digital',
         rawJd: 'Junior Marketing Executive at Nexus Digital Sdn Bhd, Kuala Lumpur. Focus on social commerce and digital campaigns.',
         roleTitle: 'Junior Marketing Executive',
-        mapperOutput: JSON.stringify({
-          role_title: 'Junior Marketing Executive',
-          company: 'Nexus Digital Sdn Bhd',
-          dimensions: [
-            { name: 'Sales & conversion logic', weight: 0.25 },
-            { name: 'Customer relationship', weight: 0.20 },
-            { name: 'Data awareness', weight: 0.20 },
-            { name: 'Adaptability', weight: 0.20 },
-            { name: 'Communication clarity', weight: 0.15 },
-          ],
-        }),
+        mapperOutput: JSON.stringify(SEED_MARKETING_MAPPER_OUTPUT),
         qaStatus: 'PASS',
         interviewLink: '/apply/seed-jd-mktg-001',
         createdAt: now - 1000 * 60 * 60 * 48,
@@ -184,17 +206,7 @@ export async function seedIfEmpty() {
         employerId: 'techcorp-my',
         rawJd: 'Senior Frontend Developer at TechCorp Malaysia. React, TypeScript, system design.',
         roleTitle: 'Senior Frontend Developer',
-        mapperOutput: JSON.stringify({
-          role_title: 'Senior Frontend Developer',
-          company: 'TechCorp Malaysia',
-          dimensions: [
-            { name: 'Technical breadth', weight: 0.30 },
-            { name: 'System design thinking', weight: 0.25 },
-            { name: 'Communication clarity', weight: 0.15 },
-            { name: 'Problem-solving approach', weight: 0.20 },
-            { name: 'Learning velocity', weight: 0.10 },
-          ],
-        }),
+        mapperOutput: JSON.stringify(SEED_TECH_MAPPER_OUTPUT),
         qaStatus: 'PASS',
         interviewLink: '/apply/seed-jd-tech-001',
         createdAt: now - 1000 * 60 * 60 * 72,
@@ -203,7 +215,7 @@ export async function seedIfEmpty() {
 
     // Insert sessions
     for (const s of SEED_SESSIONS) {
-      db.insert(sessions).values(s).run();
+      db.insert(sessions).values({ ...s, employerId: getEmployerForSeedSession(s.jdId) }).run();
     }
 
     // Add a few transcript rows for the first session
@@ -229,4 +241,75 @@ export async function seedIfEmpty() {
     // Non-fatal — app continues without seed data
     console.error('[Seed] Could not seed data:', err);
   }
+}
+
+async function ensureDemoHrUsers() {
+  const password = process.env.HR_DEMO_PASSWORD || 'TalentBridgeDemo123!';
+  const demoUsers = [
+    { id: 'default', email: process.env.HR_DEMO_EMAIL || 'admin@talentbridge.local' },
+    { id: 'nexus-digital', email: 'nexus@talentbridge.local' },
+    { id: 'techcorp-my', email: 'techcorp@talentbridge.local' },
+  ];
+
+  for (const demoUser of demoUsers) {
+    const email = normalizeEmail(demoUser.email);
+    const existingById = db.select().from(users).where(eq(users.id, demoUser.id)).get();
+    if (existingById) continue;
+
+    const existingByEmail = db.select().from(users).where(eq(users.email, email)).get();
+    if (existingByEmail) continue;
+
+    try {
+      db.insert(users).values({
+        id: demoUser.id,
+        email,
+        passwordHash: await hashPassword(password),
+        createdAt: Date.now(),
+      }).run();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.toLowerCase().includes('unique constraint')) {
+        throw error;
+      }
+    }
+  }
+}
+
+function getEmployerForSeedSession(jdId: string) {
+  if (jdId === SEED_JD_ID_1) return 'nexus-digital';
+  if (jdId === SEED_JD_ID_2) return 'techcorp-my';
+  return 'default';
+}
+
+function repairSeedMapperShapes() {
+  const seedJds = [
+    { id: SEED_JD_ID_1, mapperOutput: SEED_MARKETING_MAPPER_OUTPUT },
+    { id: SEED_JD_ID_2, mapperOutput: SEED_TECH_MAPPER_OUTPUT },
+  ];
+
+  for (const seedJd of seedJds) {
+    const existingJd = db.select().from(jdCache).where(eq(jdCache.id, seedJd.id)).get();
+    if (!existingJd) continue;
+
+    try {
+      const mapper = JSON.parse(existingJd.mapperOutput);
+      if (Array.isArray(mapper.core_dimensions)) continue;
+    } catch {
+      // Repair malformed seed JSON below.
+    }
+
+    db.update(jdCache)
+      .set({ mapperOutput: JSON.stringify(seedJd.mapperOutput) })
+      .where(eq(jdCache.id, seedJd.id))
+      .run();
+  }
+
+  db.update(sessions)
+    .set({ employerId: 'nexus-digital' })
+    .where(eq(sessions.jdId, SEED_JD_ID_1))
+    .run();
+  db.update(sessions)
+    .set({ employerId: 'techcorp-my' })
+    .where(eq(sessions.jdId, SEED_JD_ID_2))
+    .run();
 }

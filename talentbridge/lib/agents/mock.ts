@@ -101,13 +101,13 @@ export function mockStrategist(
   // Priority 4: Change dimension
   if (!developing && unexplored) {
     return buildStrategistResult(turnNumber, turnsSinceRealityCheck, 'change_dimension', targetDim, coverageMap,
-      pick(MOCK_QUESTIONS.change), false, `Moving to unexplored dimension: ${targetDim}`);
+      questionForDimension(targetDim), false, `Moving to unexplored dimension: ${targetDim}`);
   }
 
   // Priority 3: Probe deeper (default)
   const isFirst = turnNumber <= 2;
   return buildStrategistResult(turnNumber, turnsSinceRealityCheck, 'probe_deeper', targetDim, coverageMap,
-    isFirst ? pick(MOCK_QUESTIONS.open) : pick(MOCK_QUESTIONS.probe),
+    isFirst ? pickByTurn(MOCK_QUESTIONS.open, turnNumber) : pickByTurn(MOCK_QUESTIONS.probe, turnNumber),
     false, `Probing deeper on ${targetDim} (currently ${coverageMap[targetDim] ?? 'UNEXPLORED'})`);
 }
 
@@ -232,6 +232,28 @@ const MOCK_EVIDENCE = [
   "Had personal detail: 'It was during Chinese New Year, I remember because we were short-staffed'",
 ];
 
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+function pickByTurn<T>(arr: T[], turnNumber: number): T {
+  return arr[Math.max(0, turnNumber - 1) % arr.length];
+}
+
+function questionForDimension(dimension: string) {
+  const normalized = dimension.toLowerCase();
+
+  if (normalized.includes('collaboration') || normalized.includes('team')) {
+    return 'Let us switch to teamwork. Can you tell me about a time you had to work closely with others to get something done?';
+  }
+  if (normalized.includes('communication') || normalized.includes('stakeholder')) {
+    return 'Let us talk about communication. Can you share a time you had to explain something clearly to another person or team?';
+  }
+  if (normalized.includes('problem') || normalized.includes('time')) {
+    return 'Let us talk about problem-solving. Can you describe a time something went wrong and what you personally did to fix it?';
+  }
+  if (normalized.includes('learning') || normalized.includes('adapt')) {
+    return 'Let us talk about learning. Can you share a time you had to pick up something new quickly for work or a project?';
+  }
+  if (normalized.includes('execution') || normalized.includes('detail') || normalized.includes('quality')) {
+    return 'Let us talk about execution. Can you describe a task where quality or attention to detail really mattered?';
+  }
+
+  return `Let us switch to ${dimension}. Can you share one specific example from your experience?`;
 }

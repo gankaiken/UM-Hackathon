@@ -5,16 +5,22 @@ import { eq, desc } from 'drizzle-orm';
 import Link from 'next/link';
 import { getCurrentTimestamp } from '@/lib/utils/runtime';
 import { calculateAggregateEmployerReputation } from '@/lib/hrReputation';
+import { getCurrentHrUser } from '@/lib/hrAuth';
+import { redirect } from 'next/navigation';
 
 import ClientPipeline from './ClientPipeline';
 import ConnectionManager from '@/components/hr/ConnectionManager';
 export const dynamic = 'force-dynamic';
 
 export default async function HRDashboard() {
+  const user = await getCurrentHrUser();
+  if (!user) redirect('/login?next=/hr');
+
   const allSessions = await db
     .select({ session: sessions, roleTitle: jdCache.roleTitle, company: jdCache.employerId })
     .from(sessions)
     .leftJoin(jdCache, eq(sessions.jdId, jdCache.id))
+    .where(eq(sessions.employerId, user.id))
     .orderBy(desc(sessions.createdAt))
     .all();
 
@@ -104,7 +110,7 @@ export default async function HRDashboard() {
                 display: 'inline-block', boxShadow: '0 0 8px rgba(16,185,129,0.8)',
               }} />
               <span style={{ fontSize: 11, fontWeight: 600, color: '#10B981', fontFamily: 'var(--font-mono)', letterSpacing: '0.3px' }}>
-                ALL SYSTEMS OPERATIONAL
+                DEMO PIPELINE ACTIVE
               </span>
             </div>
             <h1 style={{
@@ -139,7 +145,7 @@ export default async function HRDashboard() {
 
         {/* ── KPI CARDS ──────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 16, marginBottom: 32 }}>
-          <ConnectionManager employerId="default" />
+          <ConnectionManager employerId={user.id} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             {[
               {

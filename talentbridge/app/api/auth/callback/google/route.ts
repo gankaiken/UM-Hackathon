@@ -1,12 +1,14 @@
 // app/api/auth/callback/google/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { handleGoogleCallback } from '@/lib/auth';
+import { getHrUserFromRequest } from '@/lib/hrAuth';
 
 export async function GET(req: NextRequest) {
+  const user = getHrUserFromRequest(req);
   const code = req.nextUrl.searchParams.get('code');
   const employerId = req.nextUrl.searchParams.get('state'); // We passed employerId in state
   
-  if (!code || !employerId) {
+  if (!user || !code || !employerId || employerId !== user.id) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/hr?error=oauth_failed`);
   }
 

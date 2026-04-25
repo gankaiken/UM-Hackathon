@@ -65,7 +65,7 @@ export default function ClientJobsList({ jobs }: { jobs: JobListItem[] }) {
         <button
           className="btn-primary"
           onClick={() => {
-            if (!search) alert('Advanced AI Semantic Search module is booting up... For now, type to instantly filter the list below!');
+            if (!search) alert('Type a role, skill, or company name to filter the open roles below.');
           }}
           style={{ height: 40, padding: '0 24px', fontSize: 14, borderRadius: 10, flexShrink: 0 }}
         >

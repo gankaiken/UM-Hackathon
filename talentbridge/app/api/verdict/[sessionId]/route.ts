@@ -25,6 +25,9 @@ export async function POST(
 
     const jd = await db.select().from(jdCache).where(eq(jdCache.id, session.jdId)).get();
     if (!jd) return NextResponse.json({ error: 'JD not found' }, { status: 404 });
+    if (jd.employerId !== session.employerId) {
+      return NextResponse.json({ error: 'Session ownership mismatch' }, { status: 403 });
+    }
 
     const mapperResult = JSON.parse(jd.mapperOutput);
     const sentinelData: SentinelData = normalizeSentinelData(JSON.parse(session.sentinelData || '{}'));

@@ -3,15 +3,20 @@ import { db } from '@/lib/db';
 import { sessions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { runOrchestration } from '@/lib/agents/integrationCoordinator';
+import { assertHrOwnsSession, requireHrUser } from '@/lib/hrAuth';
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     const { sessionId } = await params;
-    const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const user = requireHrUser(req);
+    if (user instanceof NextResponse) return user;
+
+    const ownership = await assertHrOwnsSession(user, sessionId);
+    if (!ownership.ok) return ownership.response;
+    const session = ownership.session;
 
     const state = session.orchestrationState ? JSON.parse(session.orchestrationState) : null;
     return NextResponse.json({ state });
@@ -21,16 +26,17 @@ export async function GET(
 }
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     const { sessionId } = await params;
-    const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    const user = requireHrUser(req);
+    if (user instanceof NextResponse) return user;
 
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    }
+    const ownership = await assertHrOwnsSession(user, sessionId);
+    if (!ownership.ok) return ownership.response;
+    const session = ownership.session;
 
     if (session.hrResponse !== 'offer') {
       return NextResponse.json(

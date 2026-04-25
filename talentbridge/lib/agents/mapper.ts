@@ -36,15 +36,21 @@ export async function runMapper(jdText: string): Promise<MapperResult> {
     return mockMapper(jdText);
   }
 
-  return await executeAgent(
-    () => zhipuJson<MapperResult>({
-      messages: [
-        { role: 'system', content: MAPPER_SYSTEM_PROMPT },
-        { role: 'user', content: `Here is the job description:\n\n${jdText}` },
-      ],
-      temperature: 0.3,
-      max_tokens: 1024,
-    }),
-    { agentName: 'Mapper' }
-  );
+  try {
+    return await executeAgent(
+      () => zhipuJson<MapperResult>({
+        messages: [
+          { role: 'system', content: MAPPER_SYSTEM_PROMPT },
+          { role: 'user', content: `Here is the job description:\n\n${jdText}` },
+        ],
+        temperature: 0.3,
+        max_tokens: 1024,
+      }),
+      { agentName: 'Mapper' }
+    );
+  } catch (error) {
+    console.warn('[Mapper] Z.ai call failed; falling back to mock mode:', error instanceof Error ? error.message : error);
+    logMockUsage('Mapper', undefined, 'Z.ai failure');
+    return mockMapper(jdText);
+  }
 }

@@ -2,7 +2,7 @@
 // Centralized environment variable validation.
 
 export const env = {
-  ZHIPU_API_KEY: process.env.ZHIPU_API_KEY,
+  ZHIPU_API_KEY: process.env.ZHIPU_API_KEY || process.env.ZAI_API_KEY || process.env.Z_AI_API_KEY,
   
   // Google API Credentials (Optional - Agent 8 falls back to Trace Mode if missing)
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
@@ -25,9 +25,9 @@ export const env = {
 export function validateCoreEnv() {
   if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
     if (env.isProduction) {
-      throw new Error('CRITICAL: ZHIPU_API_KEY is required in production mode.');
+      throw new Error('CRITICAL: ZHIPU_API_KEY or ZAI_API_KEY is required in production mode.');
     } else {
-      console.warn('[Env] WARNING: ZHIPU_API_KEY is missing. Falling back to MOCK mode.');
+      console.warn('[Env] WARNING: ZHIPU_API_KEY/ZAI_API_KEY is missing. Falling back to MOCK mode.');
     }
   }
 }
