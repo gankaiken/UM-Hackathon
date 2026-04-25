@@ -15,6 +15,24 @@ interface FormData {
   resumeFile: File | null;
 }
 
+function validate(fields: { email: string; phone: string; linkedin: string }) {
+  const errors: Record<string, string> = {};
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email))
+    errors.email = 'Invalid email address';
+
+  const clean = fields.phone?.replace(/\D/g, '');
+
+  if (!clean || clean.length < 7 || clean.length > 15) {
+    errors.phone = 'Invalid phone number';
+  }
+
+  if (fields.linkedin && !/^https:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]+\/?$/.test(fields.linkedin))
+    errors.linkedin = 'Must be a valid LinkedIn profile URL';
+
+  return errors;
+}
+
 export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string; roleTitle: string; employer: string }) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
@@ -22,6 +40,7 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState<FormData>({
     name: '',
@@ -34,9 +53,10 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
   });
 
   const set = (field: keyof FormData, value: string | File | null) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    setError('');
-  };
+  setForm(prev => ({ ...prev, [field]: value }));
+  setError('');
+  setFieldErrors(prev => ({ ...prev, [field]: '' }));
+};
 
   const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -57,7 +77,11 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
   const proceedToStep2 = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { setError('Please enter your full name.'); return; }
-    if (!form.email.trim() || !form.email.includes('@')) { setError('Please enter a valid email address.'); return; }
+
+    const errors = validate({ email: form.email, phone: form.phone, linkedin: form.linkedin });
+    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+
+    setFieldErrors({});
     setStep(2);
   };
 
@@ -176,6 +200,7 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
                 placeholder="you@email.com" style={inputStyle}
                 onFocus={focusStyle} onBlur={blurStyle}
               />
+              {fieldErrors.email && <p style={{ color: '#DC2626', fontSize: 12, marginTop: 4 }}>{fieldErrors.email}</p>}
             </div>
             <div>
               <label style={labelStyle}>Phone</label>
@@ -184,6 +209,7 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
                 placeholder="+60 12 345 6789" style={inputStyle}
                 onFocus={focusStyle} onBlur={blurStyle}
               />
+              {fieldErrors.phone && <p style={{ color: '#DC2626', fontSize: 12, marginTop: 4 }}>{fieldErrors.phone}</p>}
             </div>
           </div>
           <div>
@@ -193,6 +219,7 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
               placeholder="https://linkedin.com/in/..." style={inputStyle}
               onFocus={focusStyle} onBlur={blurStyle}
             />
+            {fieldErrors.linkedin && <p style={{ color: '#DC2626', fontSize: 12, marginTop: 4 }}>{fieldErrors.linkedin}</p>}
           </div>
           <button type="submit" className="btn-accent" style={{
             marginTop: 8, padding: '0 24px', height: 52, fontSize: 16,
