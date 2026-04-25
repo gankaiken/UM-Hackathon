@@ -24,9 +24,20 @@ export async function sendEmail({ to, subject, html, text }: SendEmailInput): Pr
   }
 
   try {
+    const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
+    const port = Number(process.env.SMTP_PORT || process.env.EMAIL_PORT || 587);
+
+    if (!host) {
+      return {
+        success: false,
+        mode: 'live',
+        message: 'SMTP host is missing.',
+      };
+    }
+
     const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: Number(process.env.EMAIL_PORT),
+      host,
+      port,
       secure: false,
       auth: {
         user: process.env.EMAIL,

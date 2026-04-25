@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import StatusNotice from '@/components/StatusNotice';
 import type { HrResponse, VerdictResult, SentinelData, StrategistResult } from '@/lib/types';
 import type { Session, JdCache, Transcript, AgentLog } from '@/lib/db/schema';
 import type { OrchestrationState } from '@/lib/agents/integrationCoordinator';
@@ -24,6 +25,8 @@ const RESPONSE_META: Record<HrResponse, { label: string; color: string; bg: stri
 export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }: Props) {
   const verdict: VerdictResult = JSON.parse(session.verdict!);
   const sentinelData: SentinelData = normalizeSentinelData(JSON.parse(session.sentinelData));
+  const quizAnswers = session.quizAnswers ? JSON.parse(session.quizAnswers) as Array<{ question: string; answer: string }> : [];
+  const preScreeningContext = session.preScreeningContext ? JSON.parse(session.preScreeningContext) as Record<string, string> : {};
   const [activeTab, setActiveTab] = useState<'overview' | 'trace' | 'sentinel' | 'transcript' | 'agent_logs'>('overview');
   const [orchestrationState, setOrchestrationState] = useState<OrchestrationState | null>(
     session.orchestrationState ? JSON.parse(session.orchestrationState) : null
@@ -43,6 +46,9 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
   const [disputeResolution, setDisputeResolution] = useState(session.disputeResolution);
   const [disputeResolvedAt, setDisputeResolvedAt] = useState<Session['disputeResolvedAt']>(session.disputeResolvedAt);
   const [resolvingDispute, setResolvingDispute] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [pendingResolution, setPendingResolution] = useState<'upheld' | 'revised' | 'fresh_interview' | null>(null);
   const activeHrResponse = hrResponse ?? null;
 
   const avgScore = verdict.overall_score ?? Math.round(
@@ -68,6 +74,8 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
 
   async function handleHrResponse(response: HrResponse) {
     setSavingResponse(response);
+    setActionNotice('');
+    setActionError('');
     try {
       const res = await fetch(`/api/hr/session/${session.id}/response`, {
         method: 'POST',
@@ -76,13 +84,14 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Could not save HR response');
+        setActionError(data.error || 'Could not save HR response');
         return;
       }
       setHrResponse(data.hrResponse);
       setHrRespondedAt(data.hrRespondedAt);
+      setActionNotice(`HR decision saved as ${RESPONSE_META[data.hrResponse as HrResponse].label}.`);
     } catch {
-      alert('Network error. Please try again.');
+      setActionError('Network error. Please try again.');
     } finally {
       setSavingResponse(null);
     }
@@ -90,6 +99,8 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
 
   async function handleSchedulePreview() {
     setSchedulingPreview(true);
+    setActionNotice('');
+    setActionError('');
     try {
       const res = await fetch(`/api/hr/session/${session.id}/schedule-preview`, {
         method: 'POST',
@@ -97,7 +108,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Could not trigger orchestration');
+        setActionError(data.error || 'Could not trigger orchestration');
         return;
       }
       setOrchestrationState(data.state);
@@ -105,15 +116,17 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
         // Fallback for UI backwards compatibility
         setInterviewScheduledAt(Date.now() + 86400000);
       }
+      setActionNotice('Scheduling preview prepared successfully.');
     } catch {
-      alert('Network error. Please try again.');
+      setActionError('Network error. Please try again.');
     } finally {
       setSchedulingPreview(false);
     }
   }
 
   async function handleResolveDispute(resolution: 'upheld' | 'revised' | 'fresh_interview') {
-    if (!confirm(`Are you sure you want to resolve this dispute as "${resolution}"?`)) return;
+    setActionNotice('');
+    setActionError('');
     setResolvingDispute(true);
     try {
       const res = await fetch(`/api/hr/session/${session.id}/resolve-dispute`, {
@@ -123,14 +136,16 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Could not resolve dispute');
+        setActionError(data.error || 'Could not resolve dispute');
         return;
       }
       setDisputeStatus(data.disputeStatus);
       setDisputeResolution(data.disputeResolution);
       setDisputeResolvedAt(data.disputeResolvedAt);
+      setPendingResolution(null);
+      setActionNotice(`Dispute resolved as ${resolution.replace('_', ' ')}.`);
     } catch {
-      alert('Network error. Please try again.');
+      setActionError('Network error. Please try again.');
     } finally {
       setResolvingDispute(false);
     }
@@ -139,6 +154,30 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', padding: '40px 0 100px' }}>
       <div style={{ maxWidth: 840, margin: '0 auto', padding: '0 24px' }}>
+        {(actionError || actionNotice) ? (
+          <StatusNotice tone={actionError ? 'error' : 'success'} title={actionError ? 'Action failed' : 'Updated'} style={{ marginBottom: 16 }}>
+            {actionError || actionNotice}
+          </StatusNotice>
+        ) : null}
+        {pendingResolution ? (
+          <StatusNotice tone="warning" title="Confirm dispute resolution" style={{ marginBottom: 16 }}>
+            Resolve this dispute as {pendingResolution.replace('_', ' ')}?
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+              <button
+                onClick={() => handleResolveDispute(pendingResolution)}
+                style={{ background: '#D97706', color: '#FFFFFF', border: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setPendingResolution(null)}
+                style={{ background: '#FFFFFF', color: '#92400E', border: '1px solid #FDE68A', borderRadius: 8, padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </StatusNotice>
+        ) : null}
         <div style={{ marginBottom: 24 }}>
           <Link
             href="/hr"
@@ -244,6 +283,30 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
             </p>
           </div>
 
+          {(quizAnswers.length > 0 || Object.values(preScreeningContext).some(Boolean)) ? (
+            <div style={{
+              marginTop: 16,
+              padding: '18px 20px',
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              borderRadius: 16,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#1D4ED8', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', marginBottom: 10, textTransform: 'uppercase' }}>
+                Pre-Interview Context Only
+              </div>
+              {Object.entries(preScreeningContext).filter(([, value]) => Boolean(value)).map(([key, value]) => (
+                <div key={key} style={{ fontSize: 13, color: '#1E3A8A', marginBottom: 8, lineHeight: 1.5 }}>
+                  <strong>{key}:</strong> {value}
+                </div>
+              ))}
+              {quizAnswers.map((entry, index) => (
+                <div key={entry.question + index} style={{ fontSize: 13, color: '#1E3A8A', marginBottom: 8, lineHeight: 1.5 }}>
+                  <strong>{entry.question}</strong> {entry.answer || 'No answer provided'}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', fontFamily: 'var(--font-mono)', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
               HR Decision
@@ -305,21 +368,21 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
               {disputeStatus === 'requested' && (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button
-                    onClick={() => handleResolveDispute('upheld')}
+                    onClick={() => setPendingResolution('upheld')}
                     disabled={resolvingDispute}
                     style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', cursor: resolvingDispute ? 'wait' : 'pointer' }}
                   >
                     Uphold Original
                   </button>
                   <button
-                    onClick={() => handleResolveDispute('revised')}
+                    onClick={() => setPendingResolution('revised')}
                     disabled={resolvingDispute}
                     style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', cursor: resolvingDispute ? 'wait' : 'pointer' }}
                   >
                     Revise Verdict
                   </button>
                   <button
-                    onClick={() => handleResolveDispute('fresh_interview')}
+                    onClick={() => setPendingResolution('fresh_interview')}
                     disabled={resolvingDispute}
                     style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#374151', cursor: resolvingDispute ? 'wait' : 'pointer' }}
                   >
@@ -344,7 +407,7 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
                 {new Date(interviewScheduledAt).toLocaleString('en-MY')}
               </div>
               <div style={{ fontSize: 12, color: '#047857', fontFamily: 'var(--font-body)', marginBottom: 8 }}>
-                {interviewScheduleNote || 'Scheduling state stored. Email can run via SMTP; Calendar requires Google connection; Zoom remains demo-scaffolded.'}
+                {interviewScheduleNote || 'Scheduling state stored. Email can run via SMTP, calendar requires a connected Google account, and meeting links depend on active integrations.'}
               </div>
               {interviewMeetingLink ? (
                 <a
@@ -395,17 +458,18 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
             {schedulingPreview ? 'Preparing Scheduling...' : 'Prepare Scheduling Link'}
           </button>
           <button
-            onClick={() => alert('Email sending is handled by the scheduling flow when SMTP environment variables are configured.')}
+            disabled
             className="btn-secondary"
-            style={{ flex: 1, justifyContent: 'center', fontSize: 14, height: 48, cursor: 'pointer' }}
+            style={{ flex: 1, justifyContent: 'center', fontSize: 14, height: 48, cursor: 'not-allowed', opacity: 0.55 }}
+            title="Email delivery is handled automatically by the scheduling flow."
           >
-            Email Status
+            Email handled in scheduling
           </button>
           <button
-            title="Download Full Transcript PDF"
-            onClick={() => alert('Compiling and downloading high-fidelity PDF transcript...')}
+            title="Transcript export is not available in this release."
+            disabled
             className="btn-secondary"
-            style={{ width: 48, height: 48, padding: 0, justifyContent: 'center', cursor: 'pointer' }}
+            style={{ width: 48, height: 48, padding: 0, justifyContent: 'center', cursor: 'not-allowed', opacity: 0.55 }}
           >
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
               <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -593,6 +657,11 @@ export default function VerdictCard({ session, jd, transcripts, agentLogs = [] }
               ) : (
                 agentLogs.map((log, idx) => (
                   <div key={idx} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 12, padding: '16px' }}>
+                    {log.outputSummary?.includes('[FALLBACK MOCK]') ? (
+                      <div style={{ fontSize: 10, fontWeight: 800, color: '#D97706', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>
+                        FALLBACK MOCK
+                      </div>
+                    ) : null}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#0A0C12', fontFamily: 'var(--font-mono)' }}>{log.agentName}</span>

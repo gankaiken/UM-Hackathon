@@ -70,6 +70,12 @@ export async function POST(req: NextRequest) {
     const mapperResult = JSON.parse(jd.mapperOutput);
     const coverageMap = JSON.parse(session.coverageMap);
     const turnsSinceRealityCheck = computeTurnsSinceLastRealityCheck(transcriptEntries);
+    const preInterviewContext = session.preScreeningContext || session.quizAnswers
+      ? JSON.stringify({
+          quizAnswers: session.quizAnswers ? JSON.parse(session.quizAnswers) : [],
+          preScreeningContext: session.preScreeningContext ? JSON.parse(session.preScreeningContext) : {},
+        })
+      : null;
     
     const strategistResult = await runStrategist(
       transcriptEntries,
@@ -77,7 +83,8 @@ export async function POST(req: NextRequest) {
       coverageMap,
       mergedSentinelData,
       turnNumber,
-      turnsSinceRealityCheck
+      turnsSinceRealityCheck,
+      preInterviewContext
     );
 
     // Update Session

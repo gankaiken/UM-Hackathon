@@ -1,5 +1,5 @@
 // app/api/jd/upload/route.ts
-// Handles JD upload: Mapper → DimensionQA → cache in SQLite → return interview link
+// Handles JD upload: Mapper -> DimensionQA -> cache in SQLite -> return interview link
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -11,6 +11,8 @@ import type { JdUploadResponse, MapperResult } from '@/lib/types';
 import { requireHrUser } from '@/lib/hrAuth';
 import { getRequestIp, logAuditEvent } from '@/lib/security';
 import { requireCsrf } from '@/lib/csrf';
+import { buildStructuredJobText, parseTimeslotsInput, serializeTimeslots } from '@/lib/jdFields';
+import { buildSafetyErrorMessage, validateHrInputs } from '@/lib/hrSafety';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,56 +21,79 @@ export async function POST(req: NextRequest) {
     const csrfError = requireCsrf(req);
     if (csrfError) return csrfError;
 
-    const { jdText, customDimensions, quizQuestions } = await req.json();
+    const {
+      title = '',
+      description = '',
+      requirements = '',
+      jdText,
+      customDimensions,
+      quizQuestions,
+      timeslots,
+    } = await req.json();
 
-    if (!jdText || typeof jdText !== 'string' || jdText.trim().length < 10) {
-      return NextResponse.json({ error: 'JD text is required (min 10 chars)' }, { status: 400 });
+    const resolvedTitle = typeof title === 'string' ? title.trim() : '';
+    const resolvedDescription = typeof description === 'string' && description.trim() ? description.trim() : jdText;
+    const resolvedRequirements = typeof requirements === 'string' ? requirements.trim() : '';
+
+    if (!resolvedDescription || typeof resolvedDescription !== 'string' || resolvedDescription.trim().length < 10) {
+      return NextResponse.json({ error: 'Job description is required (min 10 chars)' }, { status: 400 });
     }
+
+    const safety = validateHrInputs({ customDimensions, quizQuestions });
+    if (safety.blocked.length > 0) {
+      return NextResponse.json({ error: buildSafetyErrorMessage(safety.blocked), blocked: safety.blocked }, { status: 400 });
+    }
+
+    const structuredJd = buildStructuredJobText({
+      title: resolvedTitle || 'Untitled Role',
+      description: resolvedDescription,
+      requirements: resolvedRequirements,
+    });
+    const safeTimeslots = parseTimeslotsInput(timeslots);
 
     const jdId = uuid();
     const now = Date.now();
 
-    // Step 1: Run Mapper
-    console.log(`[JD Upload] Running Mapper for jdId: ${jdId}`);
-    const mapperResult = await runMapper(jdText.trim());
+    const mapperInput = safety.customDimensions.length > 0
+      ? `${structuredJd}\n\nHR Custom Dimensions:\n${safety.customDimensions.join('\n')}`
+      : structuredJd;
 
-    // Step 2: Run Dimension QA (with retry logic if REVISE)
-    let qaResult = await runDimensionQA(mapperResult, jdText, false);
+    console.log(`[JD Upload] Running Mapper for jdId: ${jdId}`);
+    const mapperResult = await runMapper(mapperInput);
+
+    let qaResult = await runDimensionQA(mapperResult, mapperInput, false);
     let finalMapper: MapperResult = mapperResult;
 
     if (qaResult.status === 'REVISE') {
-      console.log(`[JD Upload] QA REVISE — retrying Mapper`);
-      // In mock mode, mapper won't change; in real mode, re-run mapper with QA feedback
-      finalMapper = await runMapper(jdText + '\n\nQA Feedback:\n' + (qaResult.qa_feedback ?? []).join('\n'));
-      qaResult = await runDimensionQA(finalMapper, jdText, true); // isRetry=true → forces PASS_WITH_WARNING
+      console.log('[JD Upload] QA REVISE -> retrying Mapper');
+      finalMapper = await runMapper(mapperInput + '\n\nQA Feedback:\n' + (qaResult.qa_feedback ?? []).join('\n'));
+      qaResult = await runDimensionQA(finalMapper, mapperInput, true);
     }
 
-    // Step 3: Build interview link token (same as jdId for now)
     const interviewLink = `/hr/interview-link/${jdId}`;
 
-    // Step 4: Persist to SQLite
     await db.insert(jdCache).values({
       id: jdId,
       employerId: user.id,
-      rawJd: jdText.trim(),
-      roleTitle: finalMapper.role_title,
+      rawJd: structuredJd,
+      roleTitle: resolvedTitle || finalMapper.role_title,
       mapperOutput: JSON.stringify(finalMapper),
       qaStatus: qaResult.status,
       qaOutput: JSON.stringify(qaResult),
       interviewLink,
-      customDimensions: JSON.stringify(customDimensions || []),
-      quizQuestions: JSON.stringify(quizQuestions || []),
+      customDimensions: JSON.stringify(safety.customDimensions),
+      quizQuestions: JSON.stringify(safety.quizQuestions),
+      timeslots: safeTimeslots.length > 0 ? serializeTimeslots(safeTimeslots) : null,
       createdAt: now,
     }).run();
 
-    console.log(`[JD Upload] Complete — role: ${finalMapper.role_title}, qaStatus: ${qaResult.status}`);
-
-    const response: JdUploadResponse = {
+    const response: JdUploadResponse & { warnings?: string[] } = {
       jdId,
-      roleTitle: finalMapper.role_title,
+      roleTitle: resolvedTitle || finalMapper.role_title,
       mapperResult: finalMapper,
       qaStatus: qaResult.status,
       interviewLink,
+      warnings: safety.warnings,
     };
 
     await logAuditEvent({
@@ -79,7 +104,7 @@ export async function POST(req: NextRequest) {
       ipAddress: getRequestIp(req),
       targetType: 'jd',
       targetId: jdId,
-      details: { roleTitle: finalMapper.role_title },
+      details: { roleTitle: resolvedTitle || finalMapper.role_title, warnings: safety.warnings },
     });
 
     return NextResponse.json(response);

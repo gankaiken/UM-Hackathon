@@ -11,8 +11,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  let sessionId = 'unknown';
   try {
-    const { sessionId } = await params;
+    ({ sessionId } = await params);
     const user = requireHrUser(req);
     if (user instanceof NextResponse) return user;
     const csrfError = requireCsrf(req);
@@ -25,6 +26,10 @@ export async function GET(
     const state = session.orchestrationState ? JSON.parse(session.orchestrationState) : null;
     return NextResponse.json({ state });
   } catch (err) {
+    console.error('[SchedulePreview] Failed to fetch orchestration state', {
+      sessionId,
+      message: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json({ error: 'Failed to fetch state' }, { status: 500 });
   }
 }
@@ -33,8 +38,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  let sessionId = 'unknown';
   try {
-    const { sessionId } = await params;
+    ({ sessionId } = await params);
     const user = requireHrUser(req);
     if (user instanceof NextResponse) return user;
 
@@ -52,8 +58,7 @@ export async function POST(
     const verdict = session.verdict ? JSON.parse(session.verdict) : null;
     if (!verdict) return NextResponse.json({ error: 'No verdict found' }, { status: 400 });
 
-    // Kick off orchestration in the background (or await if simple trace)
-    // For demo stability, we'll await the trace mode result
+    // Await orchestration so the preview returned to HR reflects stored state.
     await runOrchestration(sessionId, verdict);
     await logAuditEvent({
       actorType: 'hr',
@@ -72,7 +77,11 @@ export async function POST(
     });
 
   } catch (error) {
-    await logAuditEvent({ actorType: 'hr', action: 'hr.schedule_preview', status: 'failure', ipAddress: getRequestIp(req), targetType: 'session', targetId: (await params).sessionId });
+    console.error('[SchedulePreview] Failed to prepare scheduling preview', {
+      sessionId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    await logAuditEvent({ actorType: 'hr', action: 'hr.schedule_preview', status: 'failure', ipAddress: getRequestIp(req), targetType: 'session', targetId: sessionId });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

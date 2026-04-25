@@ -12,6 +12,7 @@ export async function runAuditor(
   mapper: MapperResult,
   sentinelData: SentinelData,
   styleAnalysis: StyleAnalysisResult | null,
+  preInterviewContext?: string | null,
   retryFeedback?: string[]
 ): Promise<VerdictResult> {
   if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
@@ -45,6 +46,9 @@ ${JSON.stringify(sentinelData, null, 2)}
 
 ${styleAnalysis ? `STYLE ANALYSIS:\n${JSON.stringify(styleAnalysis, null, 2)}` : 'STYLE ANALYSIS: Not triggered'}
 
+PRE-INTERVIEW CONTEXT (context only, do not use for formal scoring or rejection):
+${preInterviewContext || 'none'}
+
 Output the Verdict JSON now.`,
           },
         ],
@@ -73,6 +77,7 @@ function buildAuditorPrompt(mapper: MapperResult, retryFeedback?: string[]): str
     - MAPPER_JSON (5 dimensions)
     - SENTINEL_DATA
     - STYLE_ANALYSIS (optional)
+    - PRE_INTERVIEW_CONTEXT (optional, context only)
 
     RULES (CRITICAL):
 
@@ -80,6 +85,7 @@ function buildAuditorPrompt(mapper: MapperResult, retryFeedback?: string[]): str
     - grammar, language (BM/Manglish/English)
     - tone, speed, formatting
     - education or credentials
+    - pre-interview context for scoring or rejection; it is context-only unless it reveals a contradiction to clarify
 
     Score ONLY real actions:
     - real experience

@@ -110,7 +110,7 @@ export default async function HRDashboard() {
                 display: 'inline-block', boxShadow: '0 0 8px rgba(16,185,129,0.8)',
               }} />
               <span style={{ fontSize: 11, fontWeight: 600, color: '#10B981', fontFamily: 'var(--font-mono)', letterSpacing: '0.3px' }}>
-                DEMO PIPELINE ACTIVE
+                LIVE STATUS MIXED
               </span>
             </div>
             <h1 style={{

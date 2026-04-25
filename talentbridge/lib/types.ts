@@ -155,6 +155,8 @@ export interface SessionState {
   interviewScheduledAt?: number | null;
   interviewMeetingLink?: string | null;
   interviewScheduleNote?: string | null;
+  quizAnswers?: Array<{ question: string; answer: string }>;
+  preScreeningContext?: Record<string, unknown> | null;
   disputeRequestedAt?: number | null;
   disputeReason?: string | null;
   disputeStatus?: string | null;
@@ -186,4 +188,5 @@ export interface JdUploadResponse {
   mapperResult: MapperResult;
   qaStatus: QAStatus;
   interviewLink: string;
+  warnings?: string[];
 }

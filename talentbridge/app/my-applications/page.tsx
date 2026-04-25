@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import StatusNotice from '@/components/StatusNotice';
 
 interface StoredApp {
   sessionId: string;
@@ -35,6 +36,7 @@ function timeAgo(ts: number) {
 export default function MyApplicationsPage() {
   const [apps, setApps] = useState<SessionStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -61,7 +63,9 @@ export default function MyApplicationsPage() {
           })
         );
         setApps(results as SessionStatus[]);
-      } catch { /* ignore */ }
+      } catch {
+        setLoadError('We could not load your saved applications right now. Please refresh and try again.');
+      }
       setLoading(false);
     }
     load();
@@ -94,6 +98,9 @@ export default function MyApplicationsPage() {
           {loading && (
             <div style={{ textAlign: 'center', padding: 60, color: '#94A3B8' }}>Loading your applications...</div>
           )}
+          {!loading && loadError ? (
+            <StatusNotice tone="error">{loadError}</StatusNotice>
+          ) : null}
           {!loading && apps.length === 0 && (
             <div style={{ textAlign: 'center', padding: 60, background: '#FFFFFF', borderRadius: 20, border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>

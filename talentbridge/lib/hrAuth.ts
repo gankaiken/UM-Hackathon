@@ -128,7 +128,10 @@ function verifyHrSessionCookie(value: string | undefined): HrSessionUser | null 
     const user = db.select().from(users).where(eq(users.id, payload.id)).get();
     if (!user || user.email !== payload.email) return null;
     return { id: user.id, email: user.email };
-  } catch {
+  } catch (error) {
+    console.warn('[HrAuth] Rejected malformed HR session cookie', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building, MapPin, Briefcase, Search } from 'lucide-react';
 import type { JdCache } from '@/lib/db/schema';
+import StatusNotice from '@/components/StatusNotice';
 
 type JobListItem = Pick<JdCache, 'id' | 'roleTitle' | 'employerId' | 'mapperOutput' | 'rawJd'> & {
   employerReputationWarning?: boolean;
@@ -11,6 +12,7 @@ type JobListItem = Pick<JdCache, 'id' | 'roleTitle' | 'employerId' | 'mapperOutp
 
 export default function ClientJobsList({ jobs }: { jobs: JobListItem[] }) {
   const [search, setSearch] = useState('');
+  const [searchHint, setSearchHint] = useState('');
   const router = useRouter();
 
   const filteredJobs = jobs.filter(job => {
@@ -45,11 +47,7 @@ export default function ClientJobsList({ jobs }: { jobs: JobListItem[] }) {
           placeholder="Search by role, skill, or company..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onClick={() => {
-            if (!search) {
-              // Just a subtle hint if they click it the first time
-            }
-          }}
+          aria-label="Search open roles"
           style={{
             flex: 1,
             border: 'none',
@@ -65,13 +63,22 @@ export default function ClientJobsList({ jobs }: { jobs: JobListItem[] }) {
         <button
           className="btn-primary"
           onClick={() => {
-            if (!search) alert('Type a role, skill, or company name to filter the open roles below.');
+            if (!search.trim()) {
+              setSearchHint('Type a role, skill, or company name to filter the open roles below.');
+            } else {
+              setSearchHint('');
+            }
           }}
           style={{ height: 40, padding: '0 24px', fontSize: 14, borderRadius: 10, flexShrink: 0 }}
         >
           Search
         </button>
       </div>
+      {searchHint ? (
+        <StatusNotice tone="info" style={{ marginBottom: 20 }}>
+          {searchHint}
+        </StatusNotice>
+      ) : null}
 
       {/* Jobs list */}
       {filteredJobs.length === 0 ? (

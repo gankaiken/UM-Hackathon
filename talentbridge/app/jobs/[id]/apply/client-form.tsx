@@ -23,7 +23,7 @@ function validate(fields: { email: string; phone: string; linkedin: string }) {
 
   const clean = fields.phone?.replace(/\D/g, '');
 
-  if (!clean && (clean.length < 7 || clean.length > 15)) {
+  if (!clean || clean.length < 7 || clean.length > 15) {
     errors.phone = 'Invalid phone number';
   }
 
@@ -332,14 +332,14 @@ export default function ApplyForm({ jdId, roleTitle, employer }: { jdId: string;
               {loading ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div className="spinner" style={{ width: 20, height: 20, border: '3px solid rgba(255,255,255,0.3)', borderTop: '3px solid #fff' }} />
-                  Starting Interview...
+                  Starting pre-interview...
                 </div>
-              ) : 'Begin AI Interview →'}
+              ) : 'Continue to Pre-Interview →'}
             </button>
           </div>
 
           <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-            4-minute structured interview. Your personalised outcome is tracked when it is ready.
+            Short pre-interview first, then the formal AI interview and result flow.
           </p>
         </form>
       )}

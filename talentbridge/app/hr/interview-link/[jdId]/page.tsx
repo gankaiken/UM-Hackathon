@@ -10,30 +10,13 @@ export default function InterviewLinkPage() {
   const params = useParams();
   const router = useRouter();
   const jdId = params.jdId as string;
-  const [status, setStatus] = useState('Creating your interview session...');
+  const [status, setStatus] = useState('Redirecting to the application flow...');
 
   useEffect(() => {
-    async function createAndRedirect() {
-      try {
-        const res = await fetch('/api/session/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jdId, candidateName: '' }),
-        });
-
-        if (!res.ok) {
-          setStatus('This interview link is invalid or has expired.');
-          return;
-        }
-
-        const { sessionId } = await res.json();
-        router.push(`/interview/${sessionId}`);
-      } catch {
-        setStatus('Failed to load interview. Please try again.');
-      }
-    }
-
-    createAndRedirect();
+    const timer = window.setTimeout(() => {
+      router.replace(`/jobs/${jdId}/apply`);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [jdId, router]);
 
   return (

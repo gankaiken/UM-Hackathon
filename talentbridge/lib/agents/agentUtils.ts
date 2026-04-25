@@ -99,7 +99,7 @@ export function logMockUsage(agentName: string, sessionId?: string, reason = 'no
     agentName,
     status: 'success',
     latency: 0,
-    output: `MOCK_OUTPUT (${reason})`,
+    output: `[FALLBACK MOCK] ${reason}`,
     createdAt: Date.now(),
   }).catch(() => {});
 }

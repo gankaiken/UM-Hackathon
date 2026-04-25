@@ -24,7 +24,8 @@ export const env = {
  */
 export function validateCoreEnv() {
   if (!env.ZHIPU_API_KEY || env.ZHIPU_API_KEY === 'your_zhipu_api_key_here') {
-    if (env.isProduction) {
+    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+    if (env.isProduction && !isBuildTime) {
       throw new Error('CRITICAL: ZHIPU_API_KEY or ZAI_API_KEY is required in production mode.');
     } else {
       console.warn('[Env] WARNING: ZHIPU_API_KEY/ZAI_API_KEY is missing. Falling back to MOCK mode.');

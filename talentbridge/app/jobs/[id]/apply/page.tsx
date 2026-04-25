@@ -112,7 +112,7 @@ export default async function JobApplyPage({ params }: { params: Promise<{ id: s
               </svg>
             </div>
             <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-              This is a structured, <strong>4-minute AI interview</strong>. Your outcome is tracked in TalentBridge when it is ready. No resume required.
+              This flow starts with a short <strong>pre-interview</strong>, then continues into the formal AI interview and final result view. No resume required.
             </div>
           </div>
 

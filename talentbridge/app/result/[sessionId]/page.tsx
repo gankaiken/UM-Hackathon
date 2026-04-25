@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import StatusNotice from '@/components/StatusNotice';
 import type { VerdictResult } from '@/lib/types';
 import { hashStringToRange } from '@/lib/utils/runtime';
 
@@ -23,6 +24,10 @@ export default function ResultPage() {
   const [interviewScheduledAt, setInterviewScheduledAt] = useState<number | null>(null);
   const [interviewMeetingLink, setInterviewMeetingLink] = useState('');
   const [interviewScheduleNote, setInterviewScheduleNote] = useState('');
+  const [hrResponse, setHrResponse] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [actionNotice, setActionNotice] = useState('');
+  const [actionError, setActionError] = useState('');
 
   // AI Roadmap Generation States
   const [generatingPath, setGeneratingPath] = useState(false);
@@ -36,7 +41,7 @@ export default function ResultPage() {
     const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
     
     await delay(1200);
-    setAiLogs(prev => [...prev, '[AI] Building a tailored demo roadmap from the stored verdict data...']);
+    setAiLogs(prev => [...prev, '[AI] Building a tailored learning path from the stored verdict data...']);
     await delay(1500);
     setAiLogs(prev => [...prev, `[AI] Mapping focused practice resources to gap: ${verdict?.identified_gaps?.[0] || 'Technical tooling'}`]);
     await delay(1000);
@@ -51,11 +56,18 @@ export default function ResultPage() {
 
   const handleFoundJob = async () => {
     setFoundJobLoading(true);
+    setActionError('');
+    setActionNotice('');
     try {
-      await fetch(`/api/session/${sessionId}/found-job`, { method: 'POST' });
+      const res = await fetch(`/api/session/${sessionId}/found-job`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || 'Could not update your status right now.');
+      }
       setFoundJob(true);
-    } catch {
-      alert('Could not update status. Please try again.');
+      setActionNotice('Your profile has been removed from active hiring pipelines.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not update your status. Please try again.');
     } finally {
       setFoundJobLoading(false);
     }
@@ -63,38 +75,52 @@ export default function ResultPage() {
 
   useEffect(() => {
     async function load() {
-      // Load session for name
-      const sessionRes = await fetch(`/api/session/${sessionId}`);
-      if (sessionRes.ok) {
+      setLoadError('');
+      try {
+        const sessionRes = await fetch(`/api/session/${sessionId}`);
+        if (!sessionRes.ok) {
+          const data = await sessionRes.json().catch(() => null);
+          throw new Error(data?.error || 'We could not load this interview session.');
+        }
+
         const s = await sessionRes.json();
         setCandidateName(s.candidateName);
         setFoundJob(Boolean(s.foundJob));
+        setHrResponse(s.hrResponse ?? null);
         setDisputeRequestedAt(s.disputeRequestedAt ?? null);
         setDisputeStatus(s.disputeStatus ?? null);
         setDisputeResolution(s.disputeResolution ?? null);
         setInterviewScheduledAt(s.interviewScheduledAt ?? null);
         setInterviewMeetingLink(s.interviewMeetingLink ?? '');
         setInterviewScheduleNote(s.interviewScheduleNote ?? '');
+
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          try {
+            const res = await fetch(`/api/verdict/${sessionId}`);
+            const data = await res.json();
+            if (data.ready) {
+              setVerdict(data.verdict);
+              setLoading(false);
+              clearInterval(poll);
+            } else if (attempts > 30) {
+              clearInterval(poll);
+              setLoadError('Your result is still being finalized. Please refresh in a moment.');
+              setLoading(false);
+            }
+          } catch {
+            clearInterval(poll);
+            setLoadError('We could not finish loading your result. Please refresh to try again.');
+            setLoading(false);
+          }
+        }, 2000);
+
+        return () => clearInterval(poll);
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : 'We could not load this result.');
+        setLoading(false);
       }
-
-      // Poll for verdict
-      let attempts = 0;
-      const poll = setInterval(async () => {
-        attempts++;
-        const res = await fetch(`/api/verdict/${sessionId}`);
-        const data = await res.json();
-        if (data.ready) {
-          setVerdict(data.verdict);
-          setLoading(false);
-          clearInterval(poll);
-        }
-        if (attempts > 30) {
-          clearInterval(poll);
-          setLoading(false);
-        }
-      }, 2000);
-
-      return () => clearInterval(poll);
     }
     load();
   }, [sessionId]);
@@ -118,9 +144,14 @@ export default function ResultPage() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', padding: 24 }}>
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0A0C12', marginBottom: 12, fontFamily: 'var(--font-display)' }}>Session Complete</h1>
-          <p style={{ color: '#64748B', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-            Thank you, {candidateName}! Your results are being processed. This role requires manual validation by the employer.
-          </p>
+          <StatusNotice tone={loadError ? 'error' : 'info'} title={loadError ? 'Result unavailable' : 'Result pending'}>
+            {loadError || `Thank you, ${candidateName || 'candidate'}! Your results are still being processed. Please check back shortly.`}
+          </StatusNotice>
+          <div style={{ marginTop: 16 }}>
+            <Link href="/my-applications" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>
+              View My Applications
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -132,6 +163,11 @@ export default function ResultPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F6F9FF 0%, #FFFFFF 100%)', padding: '60px 24px' }}>
       <div style={{ maxWidth: 580, margin: '0 auto' }}>
+        {(actionError || actionNotice) ? (
+          <StatusNotice tone={actionError ? 'error' : 'success'} title={actionError ? 'Action failed' : 'Updated'} style={{ marginBottom: 20 }}>
+            {actionError || actionNotice}
+          </StatusNotice>
+        ) : null}
         
         {/* Success Header Area */}
         <div style={{ textAlign: 'center', marginBottom: 40 }} className="fade-in">
@@ -247,7 +283,7 @@ export default function ResultPage() {
               {!pathGenerated && !generatingPath ? (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
                   <p style={{ color: '#92400E', fontSize: 14, marginBottom: 24, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
-                    You have strong foundational qualities, but we identified a specific gap in <strong>{verdict.identified_gaps?.[0] || 'technical tooling'}</strong>. View a demo learning path generated from your stored interview verdict.
+                    You have strong foundational qualities, but we identified a specific gap in <strong>{verdict.identified_gaps?.[0] || 'technical tooling'}</strong>. View a sample learning path generated from your stored interview verdict.
                   </p>
                   <button 
                     onClick={handleGeneratePath}
@@ -257,7 +293,7 @@ export default function ResultPage() {
                       fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
                       boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)'
                     }}>
-                    View Demo Learning Path
+                    View Learning Path Preview
                   </button>
                 </div>
               ) : generatingPath ? (
@@ -273,7 +309,7 @@ export default function ResultPage() {
               ) : (
                 <div className="fade-in">
                   <p style={{ color: '#92400E', fontSize: 14, marginBottom: 32, fontFamily: 'var(--font-body)', lineHeight: 1.6 }}>
-                    This demo roadmap shows how a guided 3-week path could be structured from your interview result. Complete it and you can return for a fresh evaluation.
+                    This preview shows how a guided 3-week path could be structured from your interview result. Complete it and you can return for a fresh evaluation.
                   </p>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'relative' }}>
@@ -466,6 +502,8 @@ export default function ResultPage() {
                   <div style={{ display: 'flex', gap: 12 }}>
                     <button 
                       onClick={async () => {
+                        setActionError('');
+                        setActionNotice('');
                         try {
                           const res = await fetch(`/api/session/${sessionId}/dispute`, {
                             method: 'POST',
@@ -474,15 +512,16 @@ export default function ResultPage() {
                           });
                           const data = await res.json();
                           if (!res.ok) {
-                            alert(data.error || 'Could not submit dispute.');
+                            setActionError(data.error || 'Could not submit dispute.');
                             return;
                           }
                           setDisputeRequestedAt(data.disputeRequestedAt);
                           setDisputeStatus(data.disputeStatus);
                           setDisputeSuccess(true);
                           setDisputing(false);
+                          setActionNotice('Your review request has been submitted.');
                         } catch {
-                          alert('Network error. Please try again.');
+                          setActionError('Network error. Please try again.');
                         }
                       }}
                       style={{ 
@@ -569,15 +608,15 @@ export default function ResultPage() {
             }}>
               View My Applications
             </Link>
-            {isGreen && interviewScheduledAt && interviewMeetingLink && (
-              <a href={interviewMeetingLink} target="_blank" rel="noreferrer" style={{
+            {isGreen && (interviewScheduledAt || hrResponse === 'offer') && (
+              <Link href={`/schedule/${sessionId}`} style={{
                 background: '#2563EB', color: '#FFFFFF', border: 'none',
                 padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600,
                 textDecoration: 'none', fontFamily: 'var(--font-body)',
                 boxShadow: '0 4px 12px rgba(37,99,235,0.2)'
               }}>
                 Go to Scheduling / Interview Booking
-              </a>
+              </Link>
             )}
           </div>
 

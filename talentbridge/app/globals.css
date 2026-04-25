@@ -514,6 +514,11 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
 }
 
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid rgba(37,99,235,0.28);
+  outline-offset: 2px;
+}
+
 input::placeholder, textarea::placeholder {
   color: var(--text-muted) !important;
 }

@@ -83,6 +83,8 @@ export async function GET(
       interviewScheduledAt: session.interviewScheduledAt,
       interviewMeetingLink: session.interviewMeetingLink,
       interviewScheduleNote: session.interviewScheduleNote,
+      quizAnswers: session.quizAnswers ? JSON.parse(session.quizAnswers) : [],
+      preScreeningContext: session.preScreeningContext ? JSON.parse(session.preScreeningContext) : null,
       disputeRequestedAt: session.disputeRequestedAt,
       disputeReason: session.disputeReason,
       disputeStatus: session.disputeStatus,

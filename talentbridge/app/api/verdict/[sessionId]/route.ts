@@ -31,6 +31,12 @@ export async function POST(
 
     const mapperResult = JSON.parse(jd.mapperOutput);
     const sentinelData: SentinelData = normalizeSentinelData(JSON.parse(session.sentinelData || '{}'));
+    const preInterviewContext = session.preScreeningContext || session.quizAnswers
+      ? JSON.stringify({
+          quizAnswers: session.quizAnswers ? JSON.parse(session.quizAnswers) : [],
+          preScreeningContext: session.preScreeningContext ? JSON.parse(session.preScreeningContext) : {},
+        })
+      : null;
     let styleAnalysis: StyleAnalysisResult | null = session.styleAnalysis
       ? JSON.parse(session.styleAnalysis)
       : null;
@@ -75,6 +81,7 @@ export async function POST(
         mapperResult,
         sentinelData,
         styleAnalysis,
+        preInterviewContext,
         attempt > 0 ? lastErrors : undefined
       );
 

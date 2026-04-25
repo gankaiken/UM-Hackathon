@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import StatusNotice from '@/components/StatusNotice';
 import type { HrResponse, VerdictResult, DimensionScore, SentinelData } from '@/lib/types';
 import type { Session } from '@/lib/db/schema';
 import { getCurrentTimestamp } from '@/lib/utils/runtime';
@@ -57,6 +58,9 @@ export default function ClientPipeline({
   const [responseOverrides, setResponseOverrides] = useState<Record<string, ResponseOverride>>({});
   const [scheduleOverrides, setScheduleOverrides] = useState<Record<string, ScheduleOverride>>({});
   const [respondingSession, setRespondingSession] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [pendingFillRole, setPendingFillRole] = useState<{ jdId: string; roleTitle: string } | null>(null);
   const now = getCurrentTimestamp();
 
   const ghostingCandidates = completed.filter(item => {
@@ -67,19 +71,21 @@ export default function ClientPipeline({
   });
 
   const handleFillRole = async (jdId: string, roleTitle: string) => {
-    if (!confirm(`Mark "${roleTitle}" as filled? All pending candidates will be automatically notified.`)) return;
     setFilling(jdId);
+    setActionNotice('');
+    setActionError('');
     try {
       const res = await fetch(`/api/jd/${jdId}/fill-role`, { method: 'POST', headers: { 'X-CSRF-Token': getCsrfTokenFromCookie() } });
       const data = await res.json();
       if (res.ok) {
         setFilledRoles(prev => new Set([...prev, jdId]));
-        alert(`✓ ${data.message}`);
+        setActionNotice(data.message || `${roleTitle} marked as filled.`);
+        setPendingFillRole(null);
       } else {
-        alert(data.error || 'Failed to mark role as filled');
+        setActionError(data.error || 'Failed to mark role as filled');
       }
     } catch {
-      alert('Network error. Please try again.');
+      setActionError('Network error. Please try again.');
     } finally {
       setFilling(null);
     }
@@ -112,7 +118,7 @@ export default function ClientPipeline({
         '[Scheduling] Drafting the candidate invitation...',
         '[Scheduling] Preparing candidate-facing schedule details...',
         '[Scheduling] Candidate scheduling link prepared.',
-        '[System] Email uses SMTP when configured; Calendar requires Google connection; Zoom remains demo-scaffolded.',
+        '[System] Email uses SMTP when configured. Calendar requires a connected Google account. Meeting links depend on active integrations.',
       ]);
     } catch {
       setScheduleLogs(prev => [...prev, '[System] Network error while creating the scheduling preview.']);
@@ -126,6 +132,8 @@ export default function ClientPipeline({
 
   const handleHrResponse = async (sessionId: string, response: HrResponse) => {
     setRespondingSession(`${sessionId}:${response}`);
+    setActionNotice('');
+    setActionError('');
     try {
       const res = await fetch(`/api/hr/session/${sessionId}/response`, {
         method: 'POST',
@@ -135,7 +143,7 @@ export default function ClientPipeline({
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || 'Could not save HR response');
+        setActionError(data.error || 'Could not save HR response');
         return;
       }
 
@@ -146,8 +154,9 @@ export default function ClientPipeline({
           hrRespondedAt: data.hrRespondedAt,
         },
       }));
+      setActionNotice(`Saved ${RESPONSE_META[data.hrResponse as HrResponse].label.toLowerCase()} for this candidate.`);
     } catch {
-      alert('Network error. Please try again.');
+      setActionError('Network error. Please try again.');
     } finally {
       setRespondingSession(null);
     }
@@ -214,6 +223,33 @@ export default function ClientPipeline({
 
   return (
     <>
+      {(actionError || actionNotice || pendingFillRole) ? (
+        <div style={{ marginBottom: 16 }}>
+          {pendingFillRole ? (
+            <StatusNotice tone="warning" title="Confirm role closure">
+              Mark &quot;{pendingFillRole.roleTitle}&quot; as filled? Pending candidates will be notified automatically.
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+                <button
+                  onClick={() => handleFillRole(pendingFillRole.jdId, pendingFillRole.roleTitle)}
+                  style={{ background: '#D97706', color: '#FFFFFF', border: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setPendingFillRole(null)}
+                  style={{ background: '#FFFFFF', color: '#92400E', border: '1px solid #FDE68A', borderRadius: 8, padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </StatusNotice>
+          ) : (
+            <StatusNotice tone={actionError ? 'error' : 'success'} title={actionError ? 'Action failed' : 'Updated'}>
+              {actionError || actionNotice}
+            </StatusNotice>
+          )}
+        </div>
+      ) : null}
       {ghostingCandidates.length > 0 && (
         <div style={{
           background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.25)',
@@ -293,7 +329,7 @@ export default function ClientPipeline({
                 fontSize: 16, fontWeight: 700, color: '#F9FAFB',
                 fontFamily: 'var(--font-display)', marginBottom: 8,
               }}>
-                Demo Pipeline Healthy
+                Pipeline Healthy
               </div>
               <div style={{
                 background: '#1E2433', borderRadius: 6, height: 6, overflow: 'hidden', marginBottom: 16,
@@ -310,7 +346,7 @@ export default function ClientPipeline({
                 fontSize: 13, color: '#34D399', lineHeight: 1.5,
                 fontFamily: 'var(--font-body)',
               }}>
-                Current demo sessions are flowing through the interview pipeline with persisted state and verdict output.
+                Current sessions are flowing through the interview pipeline with persisted state and verdict output.
               </div>
             </div>
           </div>
@@ -657,7 +693,7 @@ export default function ClientPipeline({
                             opacity: hrResponse === 'offer' ? 1 : 0.45,
                           }}
                         >
-                          <span>⚡</span> Demo Schedule
+                          <span>⚡</span> Prepare Schedule
                         </button>
                       )}
                       {(['offer', 'hold', 'reject'] as HrResponse[]).map(response => {
@@ -728,7 +764,7 @@ export default function ClientPipeline({
                       )}
                       {!filledRoles.has(session.jdId) && triage === 'GREEN' && (
                         <button
-                          onClick={() => handleFillRole(session.jdId, roleTitle ?? 'this role')}
+                          onClick={() => setPendingFillRole({ jdId: session.jdId, roleTitle: roleTitle ?? 'this role' })}
                           disabled={filling === session.jdId}
                           style={{
                             fontSize: 11, fontWeight: 600, color: '#34D399',

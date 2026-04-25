@@ -43,7 +43,8 @@ export async function runStrategist(
   coverageMap: CoverageMap,
   sentinelData: SentinelData,
   turnNumber: number,
-  turnsSinceRealityCheck: number
+  turnsSinceRealityCheck: number,
+  preInterviewContext?: string | null
 ): Promise<StrategistResult> {
   const normalizedSentinelData = normalizeSentinelData(sentinelData);
   const derivedCoverageMap = deriveCoverageMap(coverageMap, mapper.core_dimensions, transcript);
@@ -83,7 +84,8 @@ export async function runStrategist(
     mapper,
     currentDimension,
     contradiction,
-    normalizedSentinelData.integrity_stage
+    normalizedSentinelData.integrity_stage,
+    preInterviewContext
   );
 
   let result: StrategistResult;
@@ -630,7 +632,8 @@ function buildStrategistPrompt(
   mapper: MapperResult,
   currentDimension: string | null,
   contradiction: ContradictionSignal,
-  integrityStage: SentinelData['integrity_stage']
+  integrityStage: SentinelData['integrity_stage'],
+  preInterviewContext?: string | null
 ) {
   return `You are TalentBridge AI Strategist agent, hidden controller of interview flow, reading full conversation and Mapper JSON. Track exactly 5 dimensions from mapper.core_dimensions and probe_targets. Never speak to candidate, only output JSON next_action.
 
@@ -643,6 +646,7 @@ ${mapper.probe_targets}
 Current dimension: ${currentDimension ?? 'none'}
 Contradiction: ${contradiction?.context ?? 'none'}
 Sentinel stage: ${integrityStage ?? 'clean'}
+Pre-interview context (context only, never formal scoring): ${preInterviewContext || 'none'}
 
 Coverage states: UNEXPLORED TOUCHED DEVELOPING SUFFICIENT.
 

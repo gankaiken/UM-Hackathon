@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       jdId,
       candidateName,
       roleTitle: jd.roleTitle,
+      nextStep: `/pre-interview/${sessionId}`,
     });
   } catch (error) {
     console.error('[Session Create] Error:', error);

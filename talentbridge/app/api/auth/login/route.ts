@@ -29,7 +29,10 @@ export async function POST(req: NextRequest) {
     setCsrfCookie(res, createCsrfToken());
     await logAuditEvent({ actorType: 'hr', actorId: user.id, action: 'auth.login', status: 'success', ipAddress: ip });
     return res;
-  } catch {
+  } catch (error) {
+    console.error('[AuthLogin] Login failed unexpectedly', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: 'Could not log in' }, { status: 500 });
   }
 }

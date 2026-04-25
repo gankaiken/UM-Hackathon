@@ -4,11 +4,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import SentinelTracker from '@/components/candidate/SentinelTracker';
 import DebugPanel from '@/components/candidate/DebugPanel';
+import StatusNotice from '@/components/StatusNotice';
 import { useSentinelStore } from '@/store/sentinelStore';
 import type { TranscriptEntry, SentinelData } from '@/lib/types';
 import { buildMessageId, getCurrentTimestamp } from '@/lib/utils/runtime';
 
-type ChatState = 'loading' | 'welcome' | 'entry' | 'chatting' | 'closing' | 'verdict_pending' | 'done' | 'expired';
+type ChatState = 'loading' | 'welcome' | 'entry' | 'chatting' | 'closing' | 'verdict_pending' | 'done' | 'expired' | 'load_error' | 'verdict_error';
 interface Message {
   id: string;
   role: 'inquisitor' | 'candidate';
@@ -53,6 +54,8 @@ export default function InterviewPage() {
   const [debugMap, setDebugMap] = useState<Record<string, string>>({});
   const [debugReasoning, setDebugReasoning] = useState('');
   const [tabAway, setTabAway] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [verdictError, setVerdictError] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -65,6 +68,7 @@ export default function InterviewPage() {
     beginQuestionWindow,
     recordAnswerTiming,
   } = useSentinelStore();
+  const showDebugPanel = process.env.NODE_ENV !== 'production';
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -199,27 +203,48 @@ export default function InterviewPage() {
 
   async function triggerVerdict() {
     setState('verdict_pending');
+    setVerdictError('');
     try {
-      await fetch(`/api/verdict/${sessionId}`, { method: 'POST' });
+      const startRes = await fetch(`/api/verdict/${sessionId}`, { method: 'POST' });
+      if (!startRes.ok) {
+        const data = await startRes.json().catch(() => null);
+        throw new Error(data?.error || 'We could not start result generation.');
+      }
       let attempts = 0;
       const poll = setInterval(async () => {
         attempts++;
-        const res = await fetch(`/api/verdict/${sessionId}`);
-        const data = await res.json();
-        if (data.ready || attempts > 30) {
+        try {
+          const res = await fetch(`/api/verdict/${sessionId}`);
+          const data = await res.json();
+          if (data.ready) {
+            clearInterval(poll);
+            setState('done');
+            setTimeout(() => router.push(`/result/${sessionId}`), 1200);
+          } else if (attempts > 30) {
+            clearInterval(poll);
+            setVerdictError('Result generation is taking longer than expected. Please continue to your result page in a moment.');
+            setState('verdict_error');
+          }
+        } catch {
           clearInterval(poll);
-          setState('done');
-          setTimeout(() => router.push(`/result/${sessionId}`), 1200);
+          setVerdictError('We could not confirm that your result is ready. Please continue to the result page and refresh there if needed.');
+          setState('verdict_error');
         }
       }, 2000);
-    } catch { setState('done'); }
+    } catch (error) {
+      setVerdictError(error instanceof Error ? error.message : 'We could not generate your result.');
+      setState('verdict_error');
+    }
   }
 
   useEffect(() => {
     async function loadSession() {
       try {
         const res = await fetch(`/api/session/${sessionId}`);
-        if (!res.ok) { setState('entry'); return; }
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || 'We could not load this interview session.');
+        }
         const sessionData = await res.json() as SessionPayload;
         const initialRoleTitle = sessionData.roleTitle ?? sessionData.mapperResult?.role_title ?? 'this role';
 
@@ -255,8 +280,9 @@ export default function InterviewPage() {
         } else {
           setState('entry');
         }
-      } catch {
-        setState('entry');
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : 'We could not load this interview session.');
+        setState('load_error');
       }
     }
 
@@ -274,7 +300,36 @@ export default function InterviewPage() {
   if (state === 'loading') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF' }}>
-        <div className="spinner" style={{ width: 32, height: 32, border: '3px solid #F1F5F9', borderTop: '3px solid #2563EB' }} />
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner" style={{ width: 32, height: 32, margin: '0 auto 16px', border: '3px solid #F1F5F9', borderTop: '3px solid #2563EB' }} />
+          <div style={{ color: '#64748B', fontSize: 14 }}>Loading your interview session...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === 'load_error') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#FFFFFF', padding: 24 }}>
+        <div style={{ maxWidth: 460, width: '100%' }}>
+          <StatusNotice tone="error" title="Interview unavailable">
+            {loadError}
+          </StatusNotice>
+          <div style={{ marginTop: 18, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 700 }}
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => router.push('/my-applications')}
+              style={{ background: '#FFFFFF', color: '#374151', border: '1px solid #D1D5DB', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 700 }}
+            >
+              View My Applications
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -372,6 +427,26 @@ export default function InterviewPage() {
     );
   }
 
+  if (state === 'verdict_error') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#FFFFFF', padding: 24 }}>
+        <div style={{ maxWidth: 460, width: '100%' }}>
+          <StatusNotice tone="warning" title="Interview submitted">
+            {verdictError}
+          </StatusNotice>
+          <div style={{ marginTop: 18 }}>
+            <button
+              onClick={() => router.push(`/result/${sessionId}`)}
+              style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 16px', cursor: 'pointer', fontWeight: 700 }}
+            >
+              Continue to Result
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Expired / Partial Profile ────────────────────────────────────────────
   if (state === 'expired') {
     return (
@@ -425,7 +500,7 @@ export default function InterviewPage() {
         </div>
       )}
       <SentinelTracker />
-      <DebugPanel coverageMap={debugMap} reasoning={debugReasoning} />
+      {showDebugPanel ? <DebugPanel coverageMap={debugMap} reasoning={debugReasoning} /> : null}
       
       {/* ── HEADER ── */}
       <header style={{ 
